@@ -1,0 +1,1600 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+</head>
+<body style="margin:0">
+<title>Cumbre del Saber</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;700;800&display=swap">
+<style>
+/* Layout: a vertical mountain trail, base at the bottom, summit at the top; quiz and results open as full screens over it. Single committed night-expedition look. */
+:root {
+  --night: #17233b;
+  --night-2: #213252;
+  --ridge: #2c4166;
+  --snow: #eef3fb;
+  --mist: #a9b7d0;
+  --lantern: #f5b53c;
+  --lantern-deep: #c9851a;
+  --pine: #4cc38a;
+  --ember: #ef6b5b;
+  --display: "Fredoka", "Trebuchet MS", system-ui, sans-serif;
+  --body: "Nunito", "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  background: var(--night);
+  color: var(--snow);
+  font-family: var(--body);
+  font-size: 16px;
+  overflow-x: hidden;
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--night); }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible { outline: 3px solid var(--lantern); outline-offset: 3px; }
+.wrap {
+  max-width: 560px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+/* ---------- Header ---------- */
+.top {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  background: color-mix(in srgb, var(--night) 92%, transparent);
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid var(--ridge);
+}
+.top .wrap { display: flex; align-items: center; gap: 12px; padding-block: 12px; }
+.brand { font-family: var(--display); font-weight: 700; font-size: 1.35rem; letter-spacing: .01em; flex: 1; min-width: 0; }
+.brand span { color: var(--lantern); }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--night-2); border: 1px solid var(--ridge);
+  border-radius: 999px; padding: 6px 12px; font-weight: 800; font-size: .9rem;
+  font-variant-numeric: tabular-nums;
+}
+.chip svg { width: 16px; height: 16px; }
+.iconbtn { background: var(--night-2); border: 1px solid var(--ridge); border-radius: 999px; width: 36px; height: 36px; display: grid; place-items: center; }
+.iconbtn svg { width: 18px; height: 18px; }
+
+/* ---------- Map ---------- */
+.intro { padding-block: 20px 4px; }
+.intro h1 { font-family: var(--display); font-weight: 600; font-size: 1.6rem; margin: 0 0 6px; text-wrap: balance; }
+.intro p { margin: 0; color: var(--mist); line-height: 1.5; max-width: 60ch; }
+.trail { position: relative; margin: 8px 0 40px; }
+.trail svg.path { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.zone {
+  position: absolute; left: 0; right: 0;
+  border-radius: 24px;
+}
+.zone-label {
+  position: absolute; left: 12px; top: 12px;
+  font-family: var(--display); font-weight: 600; font-size: .85rem;
+  text-transform: uppercase; letter-spacing: .08em;
+  padding: 4px 10px; border-radius: 999px;
+  background: rgba(0,0,0,.22);
+}
+.zone-label small { font-family: var(--body); font-weight: 700; letter-spacing: .02em; text-transform: none; opacity: .8; margin-left: 6px; }
+.node {
+  position: absolute; width: 68px; height: 68px; margin: -34px 0 0 -34px;
+  border-radius: 50%; border: 0;
+  display: grid; place-items: center;
+  font-family: var(--display); font-weight: 700; font-size: 1.45rem;
+  background: var(--ridge); color: var(--mist);
+  box-shadow: 0 6px 0 rgba(0,0,0,.35);
+  transition: transform .15s ease;
+}
+.node.open { background: var(--snow); color: var(--night); }
+.node.open:hover { transform: translateY(-3px); }
+.node.done { background: var(--lantern); color: var(--night); box-shadow: 0 6px 0 var(--lantern-deep); }
+.node.current { animation: bob 1.6s ease-in-out infinite; outline: 4px solid var(--lantern); outline-offset: 5px; }
+.node.locked { cursor: not-allowed; }
+.node.locked svg { width: 22px; height: 22px; opacity: .7; }
+.node.summit { width: 84px; height: 84px; margin: -42px 0 0 -42px; }
+.stars-mini { position: absolute; bottom: -24px; left: 50%; transform: translateX(-50%); display: flex; gap: 1px; }
+.stars-mini svg { width: 16px; height: 16px; }
+@keyframes bob { 50% { transform: translateY(-5px); } }
+
+/* ---------- Screens ---------- */
+.screen {
+  position: fixed; inset: 0; z-index: 20; overflow-y: auto;
+  background: var(--night);
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.quiz-head { display: flex; align-items: center; gap: 10px; padding-block: 16px 8px; }
+.quiz-head .where { flex: 1; min-width: 0; }
+.where b { display: block; font-family: var(--display); font-weight: 600; font-size: 1.15rem; }
+.where span { color: var(--mist); font-size: .85rem; }
+.lives { display: flex; gap: 4px; }
+.lives svg { width: 22px; height: 22px; }
+.progress { display: flex; gap: 6px; margin: 6px 0 18px; }
+.progress i { flex: 1; height: 8px; border-radius: 4px; background: var(--ridge); }
+.progress i.ok { background: var(--pine); }
+.progress i.bad { background: var(--ember); }
+.progress i.now { background: var(--snow); }
+
+.timer { position: relative; height: 14px; border-radius: 7px; background: var(--night-2); border: 1px solid var(--ridge); overflow: hidden; }
+.timer-fill { position: absolute; inset: 0 auto 0 0; width: 100%; background: var(--pine); border-radius: 7px; }
+.timer-fill.warn { background: var(--lantern); }
+.timer-fill.danger { background: var(--ember); }
+.timer-row { display: flex; align-items: center; gap: 10px; }
+.timer-row .timer { flex: 1; }
+.secs { font-family: var(--display); font-weight: 700; font-size: 1.3rem; width: 2.6ch; text-align: right; font-variant-numeric: tabular-nums; }
+
+.qcard {
+  margin-top: 18px; background: var(--night-2); border: 1px solid var(--ridge);
+  border-radius: 22px; padding: 22px 20px;
+}
+.qcat { font-size: .78rem; font-weight: 800; text-transform: uppercase; letter-spacing: .1em; color: var(--lantern); }
+.qtext { font-family: var(--display); font-weight: 600; font-size: 1.4rem; line-height: 1.3; margin: 8px 0 0; text-wrap: balance; }
+.answers { display: grid; gap: 10px; margin-top: 18px; }
+.ans {
+  display: flex; align-items: center; gap: 12px; text-align: left;
+  background: var(--night); border: 2px solid var(--ridge); border-radius: 16px;
+  padding: 14px 14px; font-weight: 700; font-size: 1.02rem;
+  transition: border-color .12s, transform .12s, background .12s;
+}
+.ans:hover:not(:disabled) { border-color: var(--snow); transform: translateX(3px); }
+.ans .k {
+  flex: none; width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center;
+  background: var(--ridge); font-family: var(--display); font-weight: 700;
+}
+.ans:disabled { cursor: default; }
+.ans.gone { opacity: .25; }
+.ans.right { border-color: var(--pine); background: color-mix(in srgb, var(--pine) 22%, var(--night)); }
+.ans.right .k { background: var(--pine); color: var(--night); }
+.ans.wrong { border-color: var(--ember); background: color-mix(in srgb, var(--ember) 22%, var(--night)); animation: shake .35s; }
+.ans.wrong .k { background: var(--ember); color: var(--night); }
+@keyframes shake { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+
+.tools { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+.tool {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: transparent; border: 2px dashed var(--ridge); border-radius: 999px;
+  padding: 8px 14px; font-weight: 800; font-size: .9rem; color: var(--mist);
+}
+.tool:hover:not(:disabled) { border-color: var(--lantern); color: var(--lantern); }
+.tool:disabled { opacity: .35; cursor: default; }
+.feedback { min-height: 1.6em; margin-top: 14px; font-weight: 800; }
+.feedback.ok { color: var(--pine); }
+.feedback.bad { color: var(--ember); }
+
+/* ---------- Result ---------- */
+.result { text-align: center; padding-block: 40px; display: grid; gap: 14px; justify-items: center; }
+.result h2 { font-family: var(--display); font-weight: 700; font-size: 2rem; margin: 0; text-wrap: balance; }
+.result p { margin: 0; color: var(--mist); max-width: 40ch; line-height: 1.5; }
+.big-stars { display: flex; gap: 10px; }
+.big-stars svg { width: 58px; height: 58px; }
+.big-stars svg.on { animation: pop .45s backwards; }
+.big-stars svg.on:nth-child(2) { animation-delay: .15s; }
+.big-stars svg.on:nth-child(3) { animation-delay: .3s; }
+@keyframes pop { from { transform: scale(0) rotate(-40deg); } 70% { transform: scale(1.2); } }
+.tally { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.btns { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
+.btn {
+  border: 0; border-radius: 16px; padding: 14px 22px;
+  font-family: var(--display); font-weight: 600; font-size: 1.1rem;
+  background: var(--lantern); color: var(--night); box-shadow: 0 5px 0 var(--lantern-deep);
+}
+.btn:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--lantern-deep); }
+.btn.ghost { background: var(--night-2); color: var(--snow); box-shadow: 0 5px 0 rgba(0,0,0,.35); border: 1px solid var(--ridge); }
+.review { width: 100%; text-align: left; display: grid; gap: 8px; margin-top: 10px; }
+.review div { background: var(--night-2); border: 1px solid var(--ridge); border-radius: 14px; padding: 10px 14px; font-size: .92rem; line-height: 1.4; }
+.review b { color: var(--pine); }
+.review .x b { color: var(--ember); }
+.foot { color: var(--mist); font-size: .85rem; text-align: center; padding-block: 0 32px; }
+.foot button { background: none; border: 0; color: var(--mist); text-decoration: underline; padding: 0; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+.avbtn { padding: 0; overflow: hidden; width: 40px; height: 40px; }
+.avbtn svg { width: 100%; height: 100%; display: block; }
+.mini-av { position: absolute; width: 56px; height: 56px; margin: -28px 0 0 -28px; border-radius: 50%; overflow: hidden; border: 3px solid var(--lantern); pointer-events: none; animation: bob 1.6s ease-in-out infinite; }
+.mini-av svg { width: 100%; height: 100%; display: block; }
+.prize-tag { position: absolute; width: 26px; height: 26px; margin: -46px 0 0 14px; border-radius: 50%; background: var(--night); border: 2px solid var(--ridge); display: grid; place-items: center; pointer-events: none; }
+.prize-tag svg { width: 14px; height: 14px; }
+.prize { width: 100%; max-width: 380px; display: flex; align-items: center; gap: 14px; text-align: left; background: var(--night-2); border: 2px solid var(--lantern); border-radius: 20px; padding: 12px; }
+.prize .pic { flex: none; width: 88px; height: 88px; border-radius: 16px; overflow: hidden; }
+.prize .pic svg { width: 100%; height: 100%; display: block; }
+.prize .txt { flex: 1; min-width: 0; display: grid; gap: 6px; }
+.prize small { color: var(--lantern); font-weight: 800; text-transform: uppercase; letter-spacing: .1em; font-size: .72rem; }
+.prize b { font-family: var(--display); font-weight: 600; font-size: 1.2rem; }
+.prize button { justify-self: start; background: var(--lantern); color: var(--night); border: 0; border-radius: 999px; padding: 6px 14px; font-weight: 800; }
+.prize button:disabled { background: var(--pine); cursor: default; }
+.av-hero { display: grid; justify-items: center; gap: 8px; padding-block: 8px 18px; }
+.av-hero .big { width: 180px; height: 180px; border-radius: 32px; overflow: hidden; box-shadow: 0 8px 0 rgba(0,0,0,.3); }
+.av-hero .big svg { width: 100%; height: 100%; display: block; }
+.av-hero p { margin: 0; color: var(--mist); }
+.av-cat { padding-block: 0 20px; }
+.av-cat h3 { font-family: var(--display); font-weight: 600; font-size: 1.1rem; margin: 0 0 10px; }
+.av-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.tile { position: relative; background: var(--night-2); border: 2px solid var(--ridge); border-radius: 16px; padding: 6px 6px 8px; display: grid; gap: 4px; justify-items: center; font-weight: 700; font-size: .8rem; }
+.tile svg.pv { width: 100%; max-width: 96px; aspect-ratio: 1; border-radius: 12px; display: block; }
+.tile.on { border-color: var(--lantern); }
+.tile.locked { cursor: not-allowed; color: var(--mist); }
+.tile.locked svg.pv { opacity: .25; filter: grayscale(1); }
+.tile .lk { position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%); display: grid; justify-items: center; font-size: .75rem; color: var(--snow); }
+.tile .lk svg { width: 22px; height: 22px; }
+.brand { font-size: 1.15rem; }
+#livesChip span { white-space: nowrap; }
+.theme-pill { position: absolute; transform: translateX(-50%); white-space: nowrap; pointer-events: none; font-size: .7rem; font-weight: 800; padding: 2px 8px; border-radius: 999px; background: rgba(0,0,0,.3); color: var(--snow); }
+.theme-pill.new { background: var(--lantern); color: var(--night); }
+.wait { margin: 8px 0 0; background: var(--night-2); border: 2px solid var(--ember); border-radius: 16px; padding: 12px 14px; line-height: 1.45; }
+.wait b { color: var(--ember); }
+.tnum { font-variant-numeric: tabular-nums; font-weight: 800; }
+.wait.shake { animation: shake .35s; }
+@media (max-width: 420px) { .brand span { display: none; } .top .wrap { gap: 8px; } }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.toggle { background: var(--night-2); border: 2px solid var(--ridge); border-radius: 999px; padding: 7px 14px; font-weight: 800; font-size: .88rem; }
+.toggle[aria-pressed="true"] { border-color: var(--lantern); color: var(--lantern); }
+#mistakesBtn { border-color: var(--ember); }
+.hint { font-size: .85rem; margin-top: 8px !important; }
+.feedback .why, .review .why { display: block; color: var(--mist); font-weight: 600; margin: 6px 0 0; line-height: 1.45; }
+#nextQ { width: 100%; margin: 4px 0 28px; }
+.bk { display: grid; gap: 10px; padding-block: 8px 32px; }
+.bk label { font-weight: 800; margin-top: 8px; }
+.bk textarea { width: 100%; box-sizing: border-box; background: var(--night-2); color: var(--snow); border: 2px solid var(--ridge); border-radius: 14px; padding: 10px; font: 600 .8rem/1.4 ui-monospace, monospace; word-break: break-all; resize: vertical; }
+.bk .btn { justify-self: start; }
+.name-row { display: grid; gap: 6px; width: 100%; max-width: 320px; }
+.name-row label { font-weight: 800; font-size: .85rem; color: var(--mist); text-align: center; }
+.name-row input { background: var(--night-2); color: var(--snow); border: 2px solid var(--ridge); border-radius: 14px; padding: 10px 14px; font: 600 1.1rem var(--display); text-align: center; }
+.name-row input:focus { outline: none; border-color: var(--lantern); }
+.av-name { position: absolute; transform: translateX(-50%); white-space: nowrap; pointer-events: none; font-family: var(--display); font-weight: 600; font-size: .78rem; padding: 1px 8px; border-radius: 999px; background: var(--lantern); color: var(--night); }
+#fx { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 40; }
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand">Cumbre <span>del Saber</span></div>
+    <div class="chip" title="Estrellas"><svg viewBox="0 0 24 24"><path fill="#f5b53c" d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.6 7L12 17.3 5.8 20.9l1.6-7L2 9.2l7.1-.6z"/></svg><span id="starCount">0</span></div>
+    <div class="chip" id="livesChip" title="Vidas"></div>
+    <button class="iconbtn" id="soundBtn" aria-label="Sonido"></button>
+    <button class="iconbtn avbtn" id="avBtn" aria-label="Mi explorador"></button>
+  </div>
+</header>
+
+<main id="map">
+  <div class="wrap intro">
+    <h1>Sube la montaña respondiendo preguntas</h1>
+    <p>Hay <b id="qTotal">más de 1.000</b> preguntas. Cada campamento tiene un tema y 5 preguntas con tiempo: acierta al menos 3 para abrir el siguiente y ganar un premio para tu explorador. Cada error cuesta una vida y se recupera una cada 15 minutos (hasta 3). Si te quedas sin vidas, el intento termina aunque aún pudieras llegar a 3 aciertos, pero nunca pierdes campamentos ganados. Supera 10 seguidos sin reprobar y ganas una vida extra que se suma por encima de 3, hasta 6.</p>
+    <div class="controls">
+      <button class="toggle" id="practiceBtn" aria-pressed="false">Modo práctica: <b>No</b></button>
+      <button class="toggle" id="slowBtn" aria-pressed="false">Tiempo ampliado: <b>No</b></button>
+      <button class="toggle" id="mistakesBtn" hidden>Repasar mis errores (<b>0</b>)</button>
+    </div>
+    <p class="hint">En práctica no se usan vidas, pero tampoco se ganan estrellas, récords ni premios.</p>
+  </div>
+  <div class="wrap"><div class="wait" id="waitBanner" role="status" hidden></div><div class="trail" id="trail"></div></div>
+  <p class="foot wrap">Tu progreso se guarda en este navegador. <button id="backupBtn">Respaldar o cargar partida</button> · <button id="resetBtn">Empezar de cero</button></p>
+</main>
+
+<section class="screen" id="quiz" hidden>
+  <div class="wrap">
+    <div class="quiz-head">
+      <button class="iconbtn" id="quitBtn" aria-label="Volver al mapa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <div class="where"><b id="qLevel">Campamento 1</b><span id="qZone">Valle</span></div>
+      <div class="lives" id="lives"></div>
+    </div>
+    <div class="progress" id="progress"></div>
+    <div class="timer-row"><div class="timer"><div class="timer-fill" id="timerFill"></div></div><div class="secs" id="secs">20</div></div>
+    <div class="qcard">
+      <div class="qcat" id="qNum">Pregunta 1 de 5</div>
+      <p class="qtext" id="qText"></p>
+      <div class="answers" id="answers"></div>
+    </div>
+    <div class="tools">
+      <button class="tool" id="fiftyBtn">50 : 50</button>
+      <button class="tool" id="timeBtn">+10 segundos</button>
+    </div>
+    <div class="feedback" id="feedback" aria-live="polite"></div>
+    <button class="btn" id="nextQ" hidden>Siguiente pregunta</button>
+  </div>
+</section>
+
+<section class="screen" id="result" hidden>
+  <div class="wrap result">
+    <div class="big-stars" id="bigStars"></div>
+    <h2 id="rTitle"></h2>
+    <p id="rText"></p>
+    <div class="tally" id="tally"></div>
+    <div id="prizeBox"></div>
+    <div class="btns" id="rBtns"></div>
+    <div class="review" id="review"></div>
+  </div>
+</section>
+
+<section class="screen" id="avatar" hidden>
+  <div class="wrap">
+    <div class="quiz-head">
+      <button class="iconbtn" id="avBack" aria-label="Volver al mapa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <div class="where"><b id="avTitle">Mi explorador</b><span id="avCount"></span></div>
+    </div>
+    <div class="av-hero"><div class="big" id="avBig"></div>
+      <div class="name-row"><label for="avName">Nombre de tu explorador</label><input id="avName" maxlength="16" autocomplete="off" placeholder="Escribe un nombre"></div>
+      <p>Gana premios superando campamentos y elige cómo se ve tu explorador.</p></div>
+    <div id="avCats"></div>
+  </div>
+</section>
+
+<section class="screen" id="backup" hidden>
+  <div class="wrap">
+    <div class="quiz-head">
+      <button class="iconbtn" id="bkBack" aria-label="Volver al mapa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <div class="where"><b>Respaldo de partida</b><span>Para no perder tu avance si cambias de teléfono o navegador</span></div>
+    </div>
+    <div class="bk">
+      <label for="exportBox">1. Copia este código y guárdalo donde quieras</label>
+      <textarea id="exportBox" rows="4" readonly></textarea>
+      <button class="btn" id="copyBtn">Copiar código</button>
+      <label for="importBox">2. En otro dispositivo, pega tu código aquí</label>
+      <textarea id="importBox" rows="4" placeholder="CUMBRE1:..."></textarea>
+      <button class="btn ghost" id="importBtn">Cargar partida</button>
+      <p class="feedback ok" id="backupMsg" aria-live="polite"></p>
+    </div>
+  </div>
+</section>
+
+<canvas id="fx" aria-hidden="true"></canvas>
+
+<script>
+const HAND = [
+[
+["¿Cuántos días tiene una semana?","7","5","6","8"],
+["¿De qué color es el cielo en un día despejado?","Azul","Verde","Rojo","Morado"],
+["¿Qué animal hace «miau»?","El gato","El perro","La vaca","El pato"],
+["¿Cuántas patas tiene una araña?","8","6","4","10"],
+["¿Cuánto es 5 + 3?","8","7","9","6"],
+["¿En qué planeta vivimos?","La Tierra","Marte","Venus","Júpiter"],
+["¿Cuál es el océano más grande?","Pacífico","Atlántico","Índico","Ártico"],
+["¿Cuántos meses tiene un año?","12","10","11","13"],
+["¿Qué fruta es amarilla y alargada?","El plátano","La manzana","La uva","La fresa"],
+["¿Qué estación viene después del invierno?","Primavera","Verano","Otoño","Invierno otra vez"],
+["¿Cuál es la capital de España?","Madrid","Barcelona","Sevilla","Valencia"],
+["¿Cuántos lados tiene un triángulo?","3","4","5","6"],
+["¿Con qué parte del cuerpo vemos?","Los ojos","Las orejas","La nariz","Las manos"],
+["¿Qué gas necesitamos respirar para vivir?","Oxígeno","Helio","Humo","Hidrógeno"],
+["¿Cuánto es 10 × 2?","20","12","22","200"],
+["Según el dicho, ¿quién es el rey de la selva?","El león","El tigre","El elefante","El mono"],
+["¿En qué continente está Brasil?","América","África","Europa","Asia"],
+["¿Qué color sale al mezclar azul y amarillo?","Verde","Naranja","Morado","Rosa"],
+["¿Cuántos minutos tiene una hora?","60","100","30","50"],
+["¿Qué astro nos da luz durante el día?","El Sol","La Luna","Marte","Una estrella fugaz"],
+["¿Qué instrumento tiene teclas blancas y negras?","El piano","La guitarra","El tambor","La flauta"],
+["¿Cuál es el animal más grande del planeta?","La ballena azul","El elefante africano","El tiburón blanco","La jirafa"],
+["¿Cuántas ruedas tiene una bicicleta?","2","3","4","1"],
+["¿Qué idioma se habla principalmente en México?","Español","Inglés","Portugués","Francés"]
+],
+[
+["¿Cuál es la capital de Francia?","París","Lyon","Marsella","Niza"],
+["¿Quién pintó la Mona Lisa?","Leonardo da Vinci","Pablo Picasso","Vincent van Gogh","Miguel Ángel"],
+["¿Cuál es el planeta más cercano al Sol?","Mercurio","Venus","Marte","La Tierra"],
+["¿Cuál es el río más largo de América del Sur?","Amazonas","Paraná","Orinoco","Magdalena"],
+["¿Qué órgano bombea la sangre por el cuerpo?","El corazón","El hígado","Los pulmones","El riñón"],
+["¿Cuál es la fórmula química del agua?","H₂O","CO₂","O₂","H₂O₂"],
+["¿Quién escribió «Don Quijote de la Mancha»?","Miguel de Cervantes","Lope de Vega","Francisco de Quevedo","Federico García Lorca"],
+["¿Cuántos jugadores de un equipo de fútbol hay en el campo?","11","9","10","12"],
+["¿Qué metal tiene el símbolo químico Au?","Oro","Plata","Aluminio","Cobre"],
+["¿Cuál es el país más grande del mundo por superficie?","Rusia","Canadá","China","Estados Unidos"],
+["¿En qué año llegó Cristóbal Colón a América?","1492","1592","1498","1453"],
+["¿Cuál es la raíz cuadrada de 81?","9","8","7","18"],
+["¿Qué planeta es conocido como el planeta rojo?","Marte","Júpiter","Saturno","Mercurio"],
+["¿Cuál es la moneda de Japón?","El yen","El won","El yuan","La rupia"],
+["¿Cuánto es el 15 % de 200?","30","15","20","35"],
+["¿Cuál es el idioma oficial de Brasil?","Portugués","Español","Inglés","Francés"],
+["¿Qué científico propuso la teoría de la relatividad?","Albert Einstein","Isaac Newton","Galileo Galilei","Nikola Tesla"],
+["¿Cuál es la capital de Argentina?","Buenos Aires","Córdoba","Rosario","Montevideo"],
+["¿Qué tipo de animal es la ballena?","Mamífero","Pez","Anfibio","Reptil"],
+["¿Cuántos grados mide un ángulo recto?","90","180","45","60"],
+["¿Qué cordillera recorre el oeste de Sudamérica?","Los Andes","El Himalaya","Los Alpes","Las Rocosas"],
+["¿Cuál es el desierto cálido más grande del mundo?","El Sahara","El Gobi","El Atacama","El Kalahari"],
+["¿Qué parte de la planta hace la mayor parte de la fotosíntesis?","Las hojas","Las raíces","Las flores","El tallo"],
+["¿Cuántos lados tiene un hexágono?","6","5","7","8"]
+],
+[
+["¿Cuál es la capital de Australia?","Canberra","Sídney","Melbourne","Perth"],
+["¿Cuál es el elemento químico más abundante del universo?","Hidrógeno","Helio","Oxígeno","Carbono"],
+["¿En qué año cayó el Muro de Berlín?","1989","1991","1987","1985"],
+["¿Quién escribió «Cien años de soledad»?","Gabriel García Márquez","Mario Vargas Llosa","Julio Cortázar","Pablo Neruda"],
+["¿Cuántos huesos tiene el cuerpo humano adulto?","206","212","198","230"],
+["¿Cuál es la montaña más alta de América?","Aconcagua","Chimborazo","Denali","Huascarán"],
+["¿Qué parte de la célula produce la mayor parte de su energía?","La mitocondria","El ribosoma","El núcleo","El aparato de Golgi"],
+["¿Cuál es el país con más habitantes del mundo hoy?","India","China","Estados Unidos","Indonesia"],
+["¿Cuánto es 12 × 13?","156","144","169","146"],
+["¿Quién compuso «Las cuatro estaciones»?","Antonio Vivaldi","Johann Sebastian Bach","Wolfgang Amadeus Mozart","Ludwig van Beethoven"],
+["¿Cuál es el símbolo químico del potasio?","K","P","Po","Pt"],
+["¿Qué civilización construyó Machu Picchu?","Los incas","Los aztecas","Los mayas","Los olmecas"],
+["¿Cuál es el planeta más grande del sistema solar?","Júpiter","Saturno","Neptuno","Urano"],
+["¿En qué ciudad está el Coliseo?","Roma","Atenas","Estambul","Florencia"],
+["¿Cuál es la capital de Canadá?","Ottawa","Toronto","Vancouver","Montreal"],
+["¿Quién formuló la ley de la gravitación universal?","Isaac Newton","Albert Einstein","Johannes Kepler","Galileo Galilei"],
+["¿Cuál es la velocidad aproximada de la luz en el vacío?","300 000 km/s","30 000 km/s","3 000 km/s","3 000 000 km/s"],
+["¿Qué lengua tiene más hablantes nativos en el mundo?","Chino mandarín","Inglés","Español","Hindi"],
+["¿En qué año empezó la Primera Guerra Mundial?","1914","1918","1939","1905"],
+["¿Cuál es el hueso más largo del cuerpo humano?","El fémur","La tibia","El húmero","El peroné"],
+["¿Cuál es la capital de Turquía?","Ankara","Estambul","Esmirna","Antalya"],
+["¿Cuántos lados tiene un dodecágono?","12","10","20","14"],
+["¿Qué pintor se cortó parte de una oreja?","Vincent van Gogh","Paul Gauguin","Claude Monet","Salvador Dalí"],
+["¿Qué gas absorben las plantas durante la fotosíntesis?","Dióxido de carbono","Oxígeno","Nitrógeno","Metano"]
+],
+[
+["¿Cuál es el número atómico del carbono?","6","12","8","14"],
+["¿En qué año se firmó la Declaración de Independencia de Estados Unidos?","1776","1789","1783","1812"],
+["¿Cuál es la capital de Mongolia?","Ulán Bator","Astaná","Biskek","Taskent"],
+["¿Quién escribió «La Divina Comedia»?","Dante Alighieri","Francesco Petrarca","Giovanni Boccaccio","Nicolás Maquiavelo"],
+["¿Cuánto vale π redondeado a cuatro decimales?","3,1416","3,1428","3,1412","3,1461"],
+["¿Cuál es la fosa oceánica más profunda?","Fosa de las Marianas","Fosa de Puerto Rico","Fosa de Tonga","Fosa de Java"],
+["¿Qué científica ganó el Nobel de Física y el de Química?","Marie Curie","Rosalind Franklin","Lise Meitner","Ada Lovelace"],
+["¿Cuál es el único mamífero capaz de volar de verdad?","El murciélago","La ardilla voladora","El colugo","El petauro"],
+["¿Cuántos cromosomas tiene una célula humana no sexual?","46","44","48","23"],
+["¿En qué año terminó la Segunda Guerra Mundial?","1945","1944","1946","1939"],
+["¿Cuál es la capital de Kazajistán?","Astaná","Almaty","Taskent","Biskek"],
+["¿Quién pintó «La persistencia de la memoria»?","Salvador Dalí","René Magritte","Joan Miró","Pablo Picasso"],
+["¿Cuál es la derivada de x²?","2x","x","x²/2","2"],
+["¿Qué filósofo fue maestro de Alejandro Magno?","Aristóteles","Platón","Sócrates","Diógenes"],
+["¿Qué elemento tiene el símbolo Fe?","Hierro","Flúor","Fósforo","Francio"],
+["¿Cuál es el país más pequeño del mundo?","Ciudad del Vaticano","Mónaco","San Marino","Nauru"],
+["¿En qué año pisó el ser humano la Luna por primera vez?","1969","1967","1971","1965"],
+["¿Cuál es la unidad de resistencia eléctrica?","El ohmio","El voltio","El amperio","El vatio"],
+["¿Qué océano baña las costas de Mozambique?","Índico","Atlántico","Pacífico","Antártico"],
+["¿Qué obra de Homero narra el regreso de Ulises a casa?","La Odisea","La Ilíada","La Eneida","Las Metamorfosis"],
+["¿Cuántos planetas del sistema solar tienen anillos?","4","1","2","3"],
+["¿Cuál es el río más largo de Europa?","El Volga","El Danubio","El Rin","El Dniéper"],
+["¿Qué número romano representa 500?","D","L","C","M"],
+["¿En qué país está la antigua ciudad de Petra?","Jordania","Egipto","Siria","Líbano"]
+],
+[
+["¿Cuál es el valor aproximado del número de Avogadro?","6,022 × 10²³","6,626 × 10⁻³⁴","3,14 × 10²³","9,81 × 10²³"],
+["¿Qué tratado puso fin a la Guerra de los Treinta Años en 1648?","La Paz de Westfalia","El Tratado de Versalles","El Tratado de Utrecht","El Tratado de Tordesillas"],
+["¿Cuál es la capital de Burkina Faso?","Uagadugú","Bamako","Niamey","Lomé"],
+["¿Cuál es el primer número primo después de 89?","97","91","93","95"],
+["¿Cuál es la integral de 1/x?","ln|x| + C","1/x² + C","x⁻² + C","eˣ + C"],
+["¿Qué partícula transmite la fuerza electromagnética?","El fotón","El gluón","El bosón W","El gravitón"],
+["¿Quién escribió «El ser y la nada»?","Jean-Paul Sartre","Albert Camus","Martin Heidegger","Simone de Beauvoir"],
+["¿En qué año cayó Constantinopla ante los otomanos?","1453","1492","1204","1517"],
+["¿Cuál es el elemento más electronegativo?","Flúor","Oxígeno","Cloro","Nitrógeno"],
+["¿Quién compuso la ópera «El anillo del nibelungo»?","Richard Wagner","Giuseppe Verdi","Giacomo Puccini","Richard Strauss"],
+["¿Cuál es la capital de Bután?","Timbu","Katmandú","Daca","Lhasa"],
+["¿Cuántos elementos tiene hoy la tabla periódica?","118","112","120","108"],
+["¿Quién demostró el último teorema de Fermat?","Andrew Wiles","Grigori Perelman","Carl Friedrich Gauss","Leonhard Euler"],
+["¿Cuál es el hueso más pequeño del cuerpo humano?","El estribo","El yunque","El martillo","El hioides"],
+["¿Qué imperio gobernó Solimán el Magnífico?","El Imperio otomano","El Imperio persa","El Imperio mogol","El Imperio bizantino"],
+["¿Cuánto es 2¹⁰?","1024","1000","2048","512"],
+["¿En qué año publicó Darwin «El origen de las especies»?","1859","1871","1831","1809"],
+["¿Cuál es la lengua de trabajo del gobierno federal de Etiopía?","Amárico","Suajili","Tigriña","Oromo"],
+["¿En qué capa de la atmósfera está la mayor parte del ozono?","Estratosfera","Troposfera","Mesosfera","Termosfera"],
+["¿Quién fue el primer emperador romano?","Augusto","Julio César","Nerón","Trajano"],
+["¿A cuántos grados Fahrenheit hierve el agua al nivel del mar?","212","100","180","232"],
+["¿Qué pintor español pintó «Las meninas»?","Diego Velázquez","Francisco de Goya","El Greco","Bartolomé Murillo"],
+["¿Qué planeta tarda más en girar sobre sí mismo?","Venus","Mercurio","Júpiter","Marte"],
+["¿Quién escribió «Crítica de la razón pura»?","Immanuel Kant","Georg Hegel","Friedrich Nietzsche","René Descartes"]
+]
+];
+const HAND_EXP = [
+`Una semana tiene 7 días, de lunes a domingo.
+El cielo se ve azul porque el aire dispersa más la luz azul del Sol.
+El gato maúlla; el perro ladra, la vaca muge y el pato grazna.
+Las arañas tienen 8 patas; los insectos tienen 6.
+5 + 3 = 8.
+Vivimos en la Tierra, el tercer planeta desde el Sol.
+El Pacífico es el océano más grande; cubre cerca de un tercio del planeta.
+Un año tiene 12 meses, de enero a diciembre.
+El plátano es amarillo y alargado cuando está maduro.
+Después del invierno llega la primavera.
+Madrid es la capital de España; Barcelona, Sevilla y Valencia son otras ciudades.
+Un triángulo tiene 3 lados.
+Vemos con los ojos; las orejas sirven para oír.
+Respiramos oxígeno, que está en el aire.
+10 × 2 = 20.
+Al león se le llama el rey de la selva, aunque vive en la sabana.
+Brasil está en América del Sur.
+Azul y amarillo forman verde.
+Una hora tiene 60 minutos.
+El Sol nos da luz y calor durante el día.
+El piano tiene teclas blancas y negras.
+La ballena azul puede medir unos 30 metros; es el animal más grande que ha existido.
+La bicicleta tiene 2 ruedas; el triciclo tiene 3.
+En México se habla principalmente español.`,
+`París es la capital de Francia; Lyon, Marsella y Niza son otras ciudades francesas.
+Leonardo da Vinci pintó la Mona Lisa a inicios del siglo XVI.
+Mercurio es el planeta más cercano al Sol.
+El Amazonas es el río más largo de América del Sur.
+El corazón bombea la sangre por todo el cuerpo.
+El agua tiene dos átomos de hidrógeno y uno de oxígeno: H₂O.
+Miguel de Cervantes publicó el Quijote en 1605.
+Cada equipo tiene 11 jugadores en el campo, incluido el portero.
+Au viene del latín aurum, que significa oro.
+Rusia es el país más grande del mundo; Canadá es el segundo.
+Colón llegó a América el 12 de octubre de 1492.
+9 × 9 = 81.
+Marte se ve rojo por el óxido de hierro de su suelo.
+La moneda de Japón es el yen; el won es de Corea del Sur y el yuan de China.
+El 15 % de 200 es 200 × 15 ÷ 100 = 30.
+En Brasil se habla portugués porque fue colonia de Portugal.
+Albert Einstein propuso la teoría de la relatividad.
+Buenos Aires es la capital de Argentina; Montevideo es la de Uruguay.
+La ballena es un mamífero: respira aire y amamanta a sus crías.
+Un ángulo recto mide 90 grados.
+Los Andes recorren el oeste de Sudamérica, de Venezuela a Chile.
+El Sahara, en el norte de África, es el desierto cálido más grande.
+Las hojas tienen clorofila y hacen la mayor parte de la fotosíntesis.
+Un hexágono tiene 6 lados.`,
+`Canberra es la capital de Australia; Sídney es su ciudad más grande.
+El hidrógeno es el elemento más abundante del universo.
+El Muro de Berlín cayó el 9 de noviembre de 1989.
+Gabriel García Márquez publicó «Cien años de soledad» en 1967.
+Un adulto tiene 206 huesos; los bebés nacen con más y luego algunos se unen.
+El Aconcagua, en Argentina, mide unos 6.960 metros.
+Las mitocondrias producen la mayor parte de la energía de la célula.
+India superó a China como el país más poblado en 2023.
+12 × 13 = 156.
+Antonio Vivaldi compuso «Las cuatro estaciones».
+K viene de kalium, el nombre en latín del potasio.
+Los incas construyeron Machu Picchu en el siglo XV.
+Júpiter es el planeta más grande del sistema solar.
+El Coliseo está en Roma.
+Ottawa es la capital de Canadá; Toronto es su ciudad más grande.
+Isaac Newton publicó la ley de la gravitación universal en 1687.
+La luz viaja a unos 300.000 km por segundo.
+El chino mandarín tiene más hablantes nativos; el inglés tiene más hablantes en total.
+La Primera Guerra Mundial empezó en 1914 y terminó en 1918.
+El fémur, en el muslo, es el hueso más largo.
+Ankara es la capital de Turquía; Estambul es su ciudad más grande.
+Un dodecágono tiene 12 lados.
+Vincent van Gogh se cortó parte de una oreja en 1888.
+Las plantas absorben dióxido de carbono y liberan oxígeno.`,
+`El carbono tiene 6 protones, por eso su número atómico es 6.
+La Declaración de Independencia de Estados Unidos se firmó en 1776.
+Ulán Bator es la capital de Mongolia.
+Dante Alighieri escribió «La Divina Comedia» a inicios del siglo XIV.
+π = 3,14159…, que redondeado a cuatro decimales es 3,1416.
+La fosa de las Marianas, en el Pacífico, pasa de 10.900 metros de profundidad.
+Marie Curie ganó el Nobel de Física en 1903 y el de Química en 1911.
+El murciélago es el único mamífero que vuela de verdad; los demás solo planean.
+Las células humanas tienen 46 cromosomas; las sexuales tienen 23.
+La Segunda Guerra Mundial terminó en 1945.
+Astaná es la capital de Kazajistán; Almaty es su ciudad más grande.
+Salvador Dalí pintó «La persistencia de la memoria» en 1931.
+La derivada de xⁿ es n·xⁿ⁻¹, así que la de x² es 2x.
+Aristóteles fue maestro de Alejandro Magno.
+Fe viene de ferrum, el nombre en latín del hierro.
+La Ciudad del Vaticano mide menos de medio kilómetro cuadrado.
+El Apolo 11 llegó a la Luna en 1969.
+La resistencia eléctrica se mide en ohmios.
+Mozambique está en la costa este de África, frente al océano Índico.
+«La Odisea» narra el regreso de Ulises; «La Ilíada» cuenta la guerra de Troya.
+Júpiter, Saturno, Urano y Neptuno tienen anillos.
+El Volga, en Rusia, es el río más largo de Europa.
+D vale 500 en números romanos; L es 50, C es 100 y M es 1000.
+Petra está en Jordania.`,
+`El número de Avogadro es unos 6,022 × 10²³ partículas por mol.
+La Paz de Westfalia terminó la Guerra de los Treinta Años en 1648.
+Uagadugú es la capital de Burkina Faso.
+91 = 7 × 13, 93 = 3 × 31 y 95 = 5 × 19; 97 solo se divide entre 1 y sí mismo.
+La derivada de ln|x| es 1/x, así que la integral de 1/x es ln|x| + C.
+El fotón transmite la fuerza electromagnética; el gluón, la fuerza nuclear fuerte.
+Jean-Paul Sartre publicó «El ser y la nada» en 1943.
+Constantinopla cayó ante los otomanos en 1453.
+El flúor es el elemento más electronegativo.
+Richard Wagner compuso «El anillo del nibelungo».
+Timbu es la capital de Bután.
+La tabla periódica tiene 118 elementos reconocidos.
+Andrew Wiles demostró el último teorema de Fermat en 1994.
+El estribo, dentro del oído, es el hueso más pequeño.
+Solimán el Magnífico gobernó el Imperio otomano en el siglo XVI.
+2¹⁰ = 2 multiplicado por sí mismo 10 veces = 1024.
+Darwin publicó «El origen de las especies» en 1859.
+El amárico es la lengua de trabajo del gobierno federal de Etiopía.
+La mayor parte del ozono está en la estratosfera.
+Augusto fue el primer emperador romano, desde el año 27 a. C.
+El agua hierve a 100 °C, que equivalen a 212 °F.
+Diego Velázquez pintó «Las meninas» en 1656.
+Venus tarda unos 243 días terrestres en girar sobre sí mismo.
+Immanuel Kant publicó «Crítica de la razón pura» en 1781.`
+].map(z => z.split("\n"));
+const ZONES = [
+  { name: "Valle", label: "Fácil", time: 20, color: "#2f5d4f" },
+  { name: "Bosque", label: "Normal", time: 17, color: "#2c5550" },
+  { name: "Glaciar", label: "Difícil", time: 14, color: "#2e4d6e" },
+  { name: "Picos", label: "Muy difícil", time: 12, color: "#3d3f6e" },
+  { name: "Cumbre", label: "Experto", time: 10, color: "#57406a" }
+];
+const PER_ZONE = 6, PER_LEVEL = 5, TOTAL = ZONES.length * PER_ZONE;
+
+/* ---------- Question bank: hand-written questions plus questions built from fact tables ---------- */
+// País|Capital|Continente (vacío si es transcontinental)|zona
+const COUNTRIES = `España|Madrid|Europa|0
+Francia|París|Europa|0
+Italia|Roma|Europa|0
+Alemania|Berlín|Europa|0
+Reino Unido|Londres|Europa|0
+Portugal|Lisboa|Europa|0
+México|Ciudad de México|América|0
+Argentina|Buenos Aires|América|0
+Colombia|Bogotá|América|0
+Perú|Lima|América|0
+Chile|Santiago|América|0
+Japón|Tokio|Asia|0
+China|Pekín|Asia|0
+Rusia|Moscú||0
+Estados Unidos|Washington D. C.|América|0
+Cuba|La Habana|América|0
+Venezuela|Caracas|América|0
+Egipto|El Cairo|África|0
+Grecia|Atenas|Europa|0
+Uruguay|Montevideo|América|0
+Ecuador|Quito|América|1
+Paraguay|Asunción|América|1
+Costa Rica|San José|América|1
+Panamá|Ciudad de Panamá|América|1
+Guatemala|Ciudad de Guatemala|América|1
+Honduras|Tegucigalpa|América|1
+El Salvador|San Salvador|América|1
+Nicaragua|Managua|América|1
+República Dominicana|Santo Domingo|América|1
+Irlanda|Dublín|Europa|1
+Países Bajos|Ámsterdam|Europa|1
+Bélgica|Bruselas|Europa|1
+Suecia|Estocolmo|Europa|1
+Noruega|Oslo|Europa|1
+Austria|Viena|Europa|1
+Suiza|Berna|Europa|1
+Polonia|Varsovia|Europa|1
+India|Nueva Delhi|Asia|1
+Corea del Sur|Seúl|Asia|1
+Marruecos|Rabat|África|1
+Brasil|Brasilia|América|1
+Canadá|Ottawa|América|1
+Australia|Canberra|Oceanía|1
+Turquía|Ankara||1
+Dinamarca|Copenhague|Europa|1
+Finlandia|Helsinki|Europa|1
+Hungría|Budapest|Europa|2
+República Checa|Praga|Europa|2
+Rumanía|Bucarest|Europa|2
+Bulgaria|Sofía|Europa|2
+Croacia|Zagreb|Europa|2
+Serbia|Belgrado|Europa|2
+Ucrania|Kiev|Europa|2
+Islandia|Reikiavik|Europa|2
+Tailandia|Bangkok|Asia|2
+Vietnam|Hanói|Asia|2
+Filipinas|Manila|Asia|2
+Indonesia|Yakarta|Asia|2
+Malasia|Kuala Lumpur|Asia|2
+Pakistán|Islamabad|Asia|2
+Irán|Teherán|Asia|2
+Irak|Bagdad|Asia|2
+Arabia Saudita|Riad|Asia|2
+Kenia|Nairobi|África|2
+Nigeria|Abuya|África|2
+Etiopía|Adís Abeba|África|2
+Argelia|Argel|África|2
+Nueva Zelanda|Wellington|Oceanía|2
+Jamaica|Kingston|América|2
+Haití|Puerto Príncipe|América|2
+Mongolia|Ulán Bator|Asia|3
+Kazajistán|Astaná||3
+Nepal|Katmandú|Asia|3
+Bangladés|Daca|Asia|3
+Afganistán|Kabul|Asia|3
+Siria|Damasco|Asia|3
+Jordania|Amán|Asia|3
+Líbano|Beirut|Asia|3
+Ghana|Acra|África|3
+Senegal|Dakar|África|3
+Tanzania|Dodoma|África|3
+Angola|Luanda|África|3
+Mozambique|Maputo|África|3
+Madagascar|Antananarivo|África|3
+Eslovaquia|Bratislava|Europa|3
+Eslovenia|Liubliana|Europa|3
+Lituania|Vilna|Europa|3
+Letonia|Riga|Europa|3
+Estonia|Tallin|Europa|3
+Georgia|Tiflis||3
+Armenia|Ereván||3
+Uzbekistán|Taskent|Asia|3
+Camboya|Nom Pen|Asia|3
+Surinam|Paramaribo|América|3
+Guyana|Georgetown|América|3
+Belice|Belmopán|América|3
+Burkina Faso|Uagadugú|África|4
+Malí|Bamako|África|4
+Níger|Niamey|África|4
+Togo|Lomé|África|4
+Benín|Porto Novo|África|4
+Chad|Yamena|África|4
+Mauritania|Nuakchot|África|4
+Eritrea|Asmara|África|4
+Ruanda|Kigali|África|4
+Uganda|Kampala|África|4
+Zambia|Lusaka|África|4
+Zimbabue|Harare|África|4
+Malaui|Lilongüe|África|4
+Botsuana|Gaborone|África|4
+Namibia|Windhoek|África|4
+Bután|Timbu|Asia|4
+Laos|Vientián|Asia|4
+Kirguistán|Biskek|Asia|4
+Tayikistán|Dusambé|Asia|4
+Turkmenistán|Asjabad|Asia|4
+Azerbaiyán|Bakú||4
+Moldavia|Chisináu|Europa|4
+Bielorrusia|Minsk|Europa|4
+Macedonia del Norte|Skopie|Europa|4
+Albania|Tirana|Europa|4
+Montenegro|Podgorica|Europa|4
+Fiyi|Suva|Oceanía|4
+Papúa Nueva Guinea|Port Moresby|Oceanía|4
+Brunéi|Bandar Seri Begawan|Asia|4
+Omán|Mascate|Asia|4
+Catar|Doha|Asia|4
+Baréin|Manama|Asia|4
+Myanmar|Naipyidó|Asia|4`;
+
+// Elemento|Símbolo|zona
+const ELEMENTS = `Oxígeno|O|1
+Hidrógeno|H|1
+Carbono|C|1
+Nitrógeno|N|1
+Helio|He|1
+Calcio|Ca|1
+Oro|Au|1
+Plata|Ag|1
+Cloro|Cl|1
+Azufre|S|1
+Hierro|Fe|2
+Cobre|Cu|2
+Sodio|Na|2
+Potasio|K|2
+Magnesio|Mg|2
+Aluminio|Al|2
+Zinc|Zn|2
+Neón|Ne|2
+Fósforo|P|2
+Flúor|F|2
+Silicio|Si|2
+Uranio|U|2
+Plomo|Pb|3
+Estaño|Sn|3
+Mercurio|Hg|3
+Níquel|Ni|3
+Platino|Pt|3
+Yodo|I|3
+Litio|Li|3
+Argón|Ar|3
+Cobalto|Co|3
+Titanio|Ti|3
+Plutonio|Pu|3
+Radio|Ra|3
+Bromo|Br|3
+Manganeso|Mn|3
+Wolframio|W|4
+Antimonio|Sb|4
+Bismuto|Bi|4
+Cromo|Cr|4
+Selenio|Se|4
+Kriptón|Kr|4
+Xenón|Xe|4
+Arsénico|As|4
+Berilio|Be|4
+Boro|B|4
+Rubidio|Rb|4
+Estroncio|Sr|4
+Paladio|Pd|4
+Osmio|Os|4
+Iridio|Ir|4
+Torio|Th|4
+Galio|Ga|4
+Germanio|Ge|4
+Cesio|Cs|4
+Bario|Ba|4`;
+
+// Obra|Autor|zona|tipo (e escribió, p pintó, c compuso)
+const WORKS = `Romeo y Julieta|William Shakespeare|0|e
+Harry Potter|J. K. Rowling|0|e
+El principito|Antoine de Saint-Exupéry|0|e
+Las aventuras de Tom Sawyer|Mark Twain|0|e
+Pinocho|Carlo Collodi|0|e
+Alicia en el país de las maravillas|Lewis Carroll|0|e
+Hamlet|William Shakespeare|1|e
+Veinte mil leguas de viaje submarino|Julio Verne|1|e
+La vuelta al mundo en ochenta días|Julio Verne|1|e
+Oliver Twist|Charles Dickens|1|e
+Moby Dick|Herman Melville|1|e
+Frankenstein|Mary Shelley|1|e
+Drácula|Bram Stoker|1|e
+La noche estrellada|Vincent van Gogh|1|p
+Guernica|Pablo Picasso|1|p
+La última cena|Leonardo da Vinci|1|p
+Para Elisa|Ludwig van Beethoven|1|c
+La flauta mágica|Wolfgang Amadeus Mozart|1|c
+1984|George Orwell|2|e
+Orgullo y prejuicio|Jane Austen|2|e
+Crimen y castigo|Fiódor Dostoyevski|2|e
+Guerra y paz|León Tolstói|2|e
+La metamorfosis|Franz Kafka|2|e
+Rayuela|Julio Cortázar|2|e
+La casa de los espíritus|Isabel Allende|2|e
+Bodas de sangre|Federico García Lorca|2|e
+Pedro Páramo|Juan Rulfo|2|e
+El nacimiento de Venus|Sandro Botticelli|2|p
+El grito|Edvard Munch|2|p
+Los girasoles|Vincent van Gogh|2|p
+El lago de los cisnes|Piotr Chaikovski|2|c
+Ficciones|Jorge Luis Borges|3|e
+Ulises|James Joyce|3|e
+Madame Bovary|Gustave Flaubert|3|e
+Fausto|Johann Wolfgang von Goethe|3|e
+La ciudad y los perros|Mario Vargas Llosa|3|e
+El jardín de las delicias|El Bosco|3|p
+La joven de la perla|Johannes Vermeer|3|p
+La ronda de noche|Rembrandt|3|p
+Las meninas|Diego Velázquez|3|p
+Bolero|Maurice Ravel|3|c
+Carmen|Georges Bizet|3|c
+La consagración de la primavera|Ígor Stravinski|3|c
+En busca del tiempo perdido|Marcel Proust|4|e
+Así habló Zaratustra|Friedrich Nietzsche|4|e
+El contrato social|Jean-Jacques Rousseau|4|e
+Leviatán|Thomas Hobbes|4|e
+Ensayo sobre la ceguera|José Saramago|4|e
+El nombre de la rosa|Umberto Eco|4|e
+La montaña mágica|Thomas Mann|4|e
+Los hermanos Karamázov|Fiódor Dostoyevski|4|e
+El 3 de mayo en Madrid|Francisco de Goya|4|p
+Impresión, sol naciente|Claude Monet|4|p
+Las señoritas de Aviñón|Pablo Picasso|4|p
+Las bodas de Fígaro|Wolfgang Amadeus Mozart|4|c
+Aida|Giuseppe Verdi|4|c
+Madama Butterfly|Giacomo Puccini|4|c`;
+
+// Hecho|año|zona
+const EVENTS = `la llegada del ser humano a la Luna|1969|1
+el fin de la Segunda Guerra Mundial|1945|1
+la caída del Muro de Berlín|1989|1
+la independencia de Estados Unidos|1776|1
+la toma de la Bastilla, inicio de la Revolución francesa|1789|1
+el inicio de la Primera Guerra Mundial|1914|1
+el Grito de Dolores, inicio de la independencia de México|1810|2
+el hundimiento del Titanic|1912|2
+el inicio de la Segunda Guerra Mundial|1939|2
+la disolución de la Unión Soviética|1991|2
+la Revolución rusa|1917|2
+la crisis de los misiles en Cuba|1962|2
+el primer vuelo de los hermanos Wright|1903|2
+la batalla de Waterloo|1815|3
+la caída de Tenochtitlan|1521|3
+el triunfo de la Revolución cubana|1959|3
+el final de la primera vuelta al mundo, con Elcano|1522|3
+la publicación de las 95 tesis de Lutero|1517|3
+la independencia de Brasil|1822|3
+el inicio de la Guerra Civil española|1936|3
+la unificación de Alemania bajo el Imperio alemán|1871|3
+la abolición de la esclavitud en Estados Unidos (13.ª enmienda)|1865|3
+la batalla de Hastings|1066|4
+la firma de la Carta Magna en Inglaterra|1215|4
+la coronación de Carlomagno como emperador|800|4
+la llegada de la peste negra a Europa|1347|4
+la firma del Tratado de Tordesillas|1494|4
+la batalla de Lepanto|1571|4
+la Revolución Gloriosa en Inglaterra|1688|4
+la inauguración del canal de Suez|1869|4
+la inauguración del canal de Panamá|1914|4`;
+
+// País|moneda|zona
+const MONEY = `Estados Unidos|el dólar|0
+México|el peso|0
+Japón|el yen|0
+Reino Unido|la libra esterlina|0
+España|el euro|0
+China|el yuan|1
+India|la rupia|1
+Rusia|el rublo|1
+Brasil|el real|1
+Suiza|el franco suizo|1
+Corea del Sur|el won|1
+Perú|el sol|1
+Venezuela|el bolívar|1
+Guatemala|el quetzal|2
+Costa Rica|el colón|2
+Polonia|el esloti|3
+Suecia|la corona sueca|2
+Turquía|la lira turca|2
+Sudáfrica|el rand|3
+Israel|el séquel|3
+Tailandia|el baht|3
+Paraguay|el guaraní|2
+Honduras|el lempira|3
+Nicaragua|el córdoba|3
+Panamá|el balboa|3
+Vietnam|el dong|4
+Hungría|el forinto|4
+Ucrania|la grivna|4
+Malasia|el ringit|4
+Nigeria|la naira|4
+Bangladés|el taka|4
+Arabia Saudita|el riyal|4
+Kenia|el chelín keniano|4`;
+
+// palabra|contrario|zona
+const OPPOSITES = `alto|bajo|0
+grande|pequeño|0
+frío|caliente|0
+día|noche|0
+rápido|lento|0
+feliz|triste|0
+abrir|cerrar|0
+subir|bajar|0
+lleno|vacío|0
+nuevo|viejo|0
+limpio|sucio|0
+fuerte|débil|0
+duro|blando|0
+claro|oscuro|0
+encender|apagar|0
+ganar|perder|0
+dentro|fuera|0
+cerca|lejos|0
+mucho|poco|0
+entrar|salir|0
+dulce|amargo|0
+rico|pobre|0
+largo|corto|0
+primero|último|0
+generoso|tacaño|1
+valiente|cobarde|1
+ancho|estrecho|1
+áspero|suave|1
+escaso|abundante|1
+sencillo|complicado|1
+temprano|tarde|1
+verdad|mentira|1
+aceptar|rechazar|1
+construir|destruir|1`;
+
+let seed = 20261030;
+const rnd = () => { seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
+const rows = s => s.trim().split("\n").map(l => l.split("|"));
+function others(pool, n, exclude) {
+  const ex = new Set(exclude), c = [...new Set(pool)].filter(x => !ex.has(x));
+  for (let i = c.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [c[i], c[j]] = [c[j], c[i]]; }
+  return c.slice(0, n);
+}
+function near(n, spread, min = 0) {
+  const s = new Set(); let g = 0;
+  while (s.size < 3 && g++ < 300) { const v = n + ri(1, spread) * (rnd() < .5 ? -1 : 1); if (v !== n && v >= min) s.add(v); }
+  return [...s].map(String);
+}
+const BANK = [[], [], [], [], []], seenText = new Set();
+// Each question: [pregunta, correcta, mala, mala, mala, tema, explicación]
+function add(z, cat, q, a, w, exp, key = q) {
+  a = String(a);
+  if (w.length < 3 || new Set([a, ...w.slice(0, 3)]).size < 4 || seenText.has(key)) return;
+  seenText.add(key); BANK[z].push([q, a, w[0], w[1], w[2], cat, exp]);
+}
+const cap1 = s => s.charAt(0).toUpperCase() + s.slice(1);
+
+HAND.forEach((zone, z) => zone.forEach((q, i) => add(z, "Cultura general", q[0], q[1], q.slice(2), HAND_EXP[z][i])));
+
+const ctry = rows(COUNTRIES).map(([c, cap, cont, z]) => ({ c, cap, cont, z: +z }));
+const nearZone = (list, z) => list.filter(x => Math.abs(x.z - z) <= 1);
+ctry.forEach(x => {
+  const pool = nearZone(ctry, x.z), e = `${x.cap} es la capital de ${x.c}.`;
+  add(x.z, "Geografía", `¿Cuál es la capital de ${x.c}?`, x.cap, others(pool.map(p => p.cap), 3, [x.cap]), e);
+  if (!x.cap.includes(x.c) && !x.c.includes(x.cap)) add(x.z, "Geografía", `¿De qué país es capital ${x.cap}?`, x.c, others(pool.map(p => p.c), 3, [x.c]), e);
+  if (x.cont) add(Math.max(0, x.z - 1), "Geografía", `¿En qué continente está ${x.c}?`, x.cont, others(["Europa", "América", "Asia", "África", "Oceanía"], 3, [x.cont]), `${x.c} está en ${x.cont}; su capital es ${x.cap}.`);
+});
+
+const els = rows(ELEMENTS).map(([n, s, z]) => ({ n, s, z: +z }));
+els.forEach(x => {
+  const pool = nearZone(els, x.z), e = `El símbolo químico del ${x.n.toLowerCase()} es ${x.s}.` + (x.s[0] !== x.n[0] ? " Viene de su nombre en latín o en otro idioma." : "");
+  add(x.z, "Química", `¿Cuál es el símbolo químico del elemento ${x.n.toLowerCase()}?`, x.s, others(pool.map(p => p.s), 3, [x.s]), e);
+  add(x.z, "Química", `¿Qué elemento tiene el símbolo ${x.s}?`, x.n, others(pool.map(p => p.n), 3, [x.n]), e);
+});
+
+const works = rows(WORKS).map(([t, a, z, k]) => ({ t, a, z: +z, k }));
+const VERB = { e: "escribió", p: "pintó", c: "compuso" }, KIND = { e: "Literatura", p: "Arte", c: "Música" };
+works.forEach(x => {
+  const same = works.filter(w => w.k === x.k && w.a !== x.a), e = `${x.a} ${VERB[x.k]} «${x.t}».`;
+  add(x.z, KIND[x.k], `¿Quién ${VERB[x.k]} «${x.t}»?`, x.a, others(same.map(w => w.a), 3, [x.a]), e);
+  add(Math.min(4, x.z + 1), KIND[x.k], `¿Cuál de estas obras ${VERB[x.k]} ${x.a}?`, x.t, others(same.map(w => w.t), 3, [x.t]), e);
+});
+
+rows(EVENTS).forEach(([e, y, z]) => add(+z, "Historia", `¿En qué año fue ${e}?`, y, near(+y, +z < 2 ? 12 : 25, 1), `${cap1(e)} fue en ${y}.`));
+
+const money = rows(MONEY).map(([c, m, z]) => ({ c, m, z: +z }));
+const bare = m => m.replace(/^(el|la) /, "");
+money.forEach(x => add(x.z, "Economía", `¿Cuál es la moneda oficial de ${x.c}?`, bare(x.m), others(money.map(p => bare(p.m)), 3, [bare(x.m), "rupia"]), `La moneda de ${x.c} es ${x.m}.`));
+
+const opp = rows(OPPOSITES).map(([w, o, z]) => ({ w, o, z: +z }));
+opp.forEach(x => add(x.z, "Lenguaje", `¿Cuál es lo contrario de «${x.w}»?`, x.o, others(opp.filter(p => p.z === x.z && p !== x).map(p => p.o), 3, [x.o, x.w]), `Lo contrario de «${x.w}» es «${x.o}».`));
+
+// Matemáticas
+const M = "Matemáticas", sp = n => Math.max(3, Math.round(n * .15));
+for (let i = 0; i < 40; i++) { const a = ri(2, 20), b = ri(2, 20); add(0, M, `¿Cuánto es ${a} + ${b}?`, a + b, near(a + b, 4, 0), `${a} + ${b} = ${a + b}.`); }
+for (let i = 0; i < 40; i++) { const a = ri(10, 30), b = ri(1, a - 1); add(0, M, `¿Cuánto es ${a} − ${b}?`, a - b, near(a - b, 4, 0), `${a} − ${b} = ${a - b}. Comprueba: ${a - b} + ${b} = ${a}.`); }
+for (let i = 0; i < 45; i++) { const a = ri(2, 10), b = ri(2, 10); add(1, M, `¿Cuánto es ${a} × ${b}?`, a * b, near(a * b, sp(a * b), 1), `${a} × ${b} = ${a * b}.`); }
+for (let i = 0; i < 30; i++) { const b = ri(2, 10), q = ri(2, 10); add(1, M, `¿Cuánto es ${b * q} ÷ ${b}?`, q, near(q, 3, 1), `${b * q} ÷ ${b} = ${q}, porque ${b} × ${q} = ${b * q}.`); }
+for (let i = 0; i < 25; i++) { const a = ri(12, 99), b = ri(3, 9), t = Math.floor(a / 10) * 10, u = a % 10; add(2, M, `¿Cuánto es ${a} × ${b}?`, a * b, near(a * b, sp(a * b), 1), u ? `${t} × ${b} = ${t * b} y ${u} × ${b} = ${u * b}; ${t * b} + ${u * b} = ${a * b}.` : `${a} × ${b} = ${a * b}.`); }
+for (let n = 11; n <= 25; n++) add(2, M, `¿Cuánto es ${n}²?`, n * n, near(n * n, sp(n * n), 1), `${n}² = ${n} × ${n} = ${n * n}.`);
+for (let i = 0; i < 25; i++) { const p = [10, 20, 25, 50, 75][ri(0, 4)], base = ri(2, 20) * 20, v = base * p / 100; add(2, M, `¿Cuánto es el ${p} % de ${base}?`, v, near(v, sp(v), 1), `El ${p} % de ${base} es ${base} × ${p} ÷ 100 = ${v}.`); }
+for (let i = 0; i < 40; i++) {
+  const x = ri(2, 15), a = ri(2, 9), b = ri(1, 20), t = i % 3;
+  if (t === 0) add(3, M, `Si x + ${b} = ${x + b}, ¿cuánto vale x?`, x, near(x, 4, 0), `x = ${x + b} − ${b} = ${x}.`);
+  if (t === 1) add(3, M, `Si ${a}x = ${a * x}, ¿cuánto vale x?`, x, near(x, 4, 1), `x = ${a * x} ÷ ${a} = ${x}.`);
+  if (t === 2) add(3, M, `Si ${a}x + ${b} = ${a * x + b}, ¿cuánto vale x?`, x, near(x, 4, 1), `Primero resta ${b}: ${a}x = ${a * x}. Luego divide entre ${a}: x = ${x}.`);
+}
+for (let n = 13; n <= 30; n++) add(3, M, `¿Cuál es la raíz cuadrada de ${n * n}?`, n, near(n, 3, 1), `√${n * n} = ${n}, porque ${n} × ${n} = ${n * n}.`);
+for (let n = 5; n <= 12; n++) add(3, M, `¿Cuánto es 2 elevado a ${n}?`, 2 ** n, [2 ** (n - 1), 2 ** (n + 1), n * n * 2].map(String), `2 elevado a ${n} es 2 multiplicado ${n} veces: ${2 ** n}. Cada vez que sube 1, se duplica.`);
+for (let n = 3; n <= 7; n++) add(3, M, `¿Cuánto es 3 elevado a ${n}?`, 3 ** n, [3 ** (n - 1), 3 ** (n + 1), 2 ** n * 3].map(String), `3 elevado a ${n} es 3 multiplicado ${n} veces: ${3 ** n}.`);
+const isPrime = n => { if (n < 2) return false; for (let d = 2; d * d <= n; d++) if (n % d === 0) return false; return true; };
+const factorOf = n => { for (let d = 2; d * d <= n; d++) if (n % d === 0) return `${n} = ${d} × ${n / d}`; return ""; };
+const primes = [], comps = [];
+for (let n = 101; n <= 299; n += 2) { if (n % 5 === 0) continue; (isPrime(n) ? primes : comps).push(String(n)); }
+primes.forEach(p => { const w = others(comps.filter(c => Math.abs(c - p) < 40), 3, []); add(4, M, "¿Cuál de estos números es primo?", p, w, `${p} solo se divide entre 1 y sí mismo. Los otros no son primos: ${w.map(c => factorOf(+c)).join(", ")}.`, "primo-" + p); });
+let fact = 1; for (let n = 1; n <= 9; n++) { fact *= n; if (n >= 4) add(4, M, `¿Cuánto es ${n}! (factorial de ${n})?`, fact, [fact / n, fact * (n + 1), fact + n * 10].map(String), `${n}! = ${Array.from({ length: n }, (_, i) => i + 1).join(" × ")} = ${fact}.`); }
+for (let n = 4; n <= 15; n++) add(4, M, `¿Cuánto es ${n}³?`, n ** 3, near(n ** 3, sp(n ** 3), 1), `${n}³ = ${n} × ${n} × ${n} = ${n ** 3}.`);
+for (let n = 6; n <= 16; n++) add(4, M, `¿A qué número hay que elevar 2 para obtener ${2 ** n}?`, n, near(n, 3, 1), `2 elevado a ${n} es ${2 ** n}.`);
+const ROM = [[1000, "M"], [900, "CM"], [500, "D"], [400, "CD"], [100, "C"], [90, "XC"], [50, "L"], [40, "XL"], [10, "X"], [9, "IX"], [5, "V"], [4, "IV"], [1, "I"]];
+const romanParts = n => { const out = []; ROM.forEach(([v, r]) => { while (n >= v) { out.push([v, r]); n -= v; } }); return out; };
+const roman = n => romanParts(n).map(p => p[1]).join("");
+const romanWhy = n => { const ps = romanParts(n); return `${n} = ${ps.map(p => p[0]).join(" + ")} = ${ps.map(p => p[1]).join(" + ")} = ${roman(n)}.`; };
+for (let i = 0; i < 35; i++) { const n = ri(14, 99); add(3, M, `¿Cómo se escribe ${n} en números romanos?`, roman(n), near(n, 11, 1).map(v => roman(+v)), romanWhy(n)); }
+for (let i = 0; i < 35; i++) { const n = ri(400, 3999); add(4, M, `¿Cómo se escribe ${n} en números romanos?`, roman(n), [n + 100, n - 10, n + 40 > 3999 ? n - 40 : n + 40].map(roman), romanWhy(n)); }
+for (let i = 0; i < 25; i++) { const n = ri(14, 99); const r = roman(n); add(3, M, `¿Qué número es ${r} en números romanos?`, n, near(n, 9, 1), romanWhy(n)); }
+
+const Q_TOTAL = BANK.reduce((a, z) => a + z.length, 0);
+const Q_BY_TEXT = new Map(); BANK.forEach(z => z.forEach(q => Q_BY_TEXT.set(q[0] + "|" + q[1], q)));
+
+/* ---------- Avatar ---------- */
+const INK = "#17233b";
+const AV = [
+  { key: "fondo", name: "Fondo", items: ["Noche", "Amanecer", "Bosque", "Lava", "Océano", "Aurora"] },
+  { key: "color", name: "Color", items: ["Nieve", "Ámbar", "Menta", "Coral", "Cielo", "Lavanda"] },
+  { key: "ojos", name: "Ojos", items: ["Normales", "Felices", "Guiño", "Estrellas", "Sorprendidos", "Brillantes"] },
+  { key: "gorro", name: "Gorro", items: ["Sin gorro", "Gorro de lana", "Gorra", "Casco de explorador", "Sombrero de copa", "Corona"] },
+  { key: "extra", name: "Accesorio", items: ["Nada", "Bufanda", "Gafas", "Pajarita", "Medalla", "Capa"] },
+  { key: "amigo", name: "Compañero", items: ["Nadie", "Chispa", "Luciérnaga", "Pajarito", "Nubecita", "Cometa"] }
+];
+// Level l (1..30) unlocks item (zone + 1) of category (position inside zone).
+const rewardOf = l => ({ cat: (l - 1) % PER_ZONE, item: zoneOf(l) + 1 });
+const levelOf = (cat, item) => (item - 1) * PER_ZONE + cat + 1;
+const BG = [["#1d2b4a", "#2c4166"], ["#f6d365", "#f7a072"], ["#6fbf73", "#2f5d4f"], ["#ef6b5b", "#5a1d1d"], ["#3fb8c9", "#0f4c75"], ["#4cc38a", "#3d3f6e"]];
+const SKIN = ["#eef3fb", "#f5b53c", "#7fe0b3", "#ff8f7a", "#8ec9ff", "#c7a6ff"];
+const starPath = (cx, cy, r) => { let d = ""; for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * .45 : r; d += (i ? "L" : "M") + (cx + rr * Math.cos(a)).toFixed(1) + " " + (cy + rr * Math.sin(a)).toFixed(1); } return d + "Z"; };
+let gid = 0;
+function avatarSVG(cfg, cls = "") {
+  const id = "g" + (++gid), [b1, b2] = BG[cfg.fondo], skin = SKIN[cfg.color];
+  let s = `<svg class="${cls}" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${b1}"/><stop offset="1" stop-color="${b2}"/></linearGradient></defs><rect width="200" height="200" fill="url(#${id})"/>`;
+  s += `<ellipse cx="100" cy="190" rx="70" ry="10" fill="#000" opacity=".18"/>`;
+  if (cfg.extra === 5) s += `<path d="M48 112 Q34 176 56 192 L144 192 Q166 176 152 112 Z" fill="#7a3db8" stroke="${INK}" stroke-width="4" stroke-linejoin="round"/>`;
+  s += `<ellipse cx="78" cy="182" rx="15" ry="9" fill="${INK}"/><ellipse cx="122" cy="182" rx="15" ry="9" fill="${INK}"/>`;
+  s += `<ellipse cx="100" cy="120" rx="58" ry="62" fill="${skin}" stroke="${INK}" stroke-width="4"/>`;
+  s += `<circle cx="70" cy="130" r="8" fill="#ff6f91" opacity=".35"/><circle cx="130" cy="130" r="8" fill="#ff6f91" opacity=".35"/>`;
+  // eyes
+  const E = [[82, 110], [118, 110]];
+  const eye = {
+    0: ([x, y]) => `<circle cx="${x}" cy="${y}" r="6" fill="${INK}"/>`,
+    1: ([x, y]) => `<path d="M${x - 7} ${y + 2} Q${x} ${y - 8} ${x + 7} ${y + 2}" fill="none" stroke="${INK}" stroke-width="4" stroke-linecap="round"/>`,
+    3: ([x, y]) => `<path d="${starPath(x, y, 9)}" fill="#f5b53c" stroke="${INK}" stroke-width="2"/>`,
+    4: ([x, y]) => `<circle cx="${x}" cy="${y}" r="10" fill="#fff" stroke="${INK}" stroke-width="3"/><circle cx="${x}" cy="${y}" r="4" fill="${INK}"/>`,
+    5: ([x, y]) => `<ellipse cx="${x}" cy="${y}" rx="8" ry="10" fill="${INK}"/><circle cx="${x + 3}" cy="${y - 4}" r="3" fill="#fff"/><circle cx="${x - 3}" cy="${y + 4}" r="1.5" fill="#fff"/>`
+  };
+  if (cfg.ojos === 2) s += eye[0](E[0]) + eye[1](E[1]);
+  else s += E.map(eye[cfg.ojos]).join("");
+  s += cfg.ojos === 4 ? `<ellipse cx="100" cy="134" rx="6" ry="7" fill="${INK}"/>` : `<path d="M88 130 Q100 142 112 130" fill="none" stroke="${INK}" stroke-width="4" stroke-linecap="round"/>`;
+  // accessories
+  if (cfg.extra === 1) s += `<path d="M46 146 Q100 166 154 146 L156 160 Q100 180 44 160 Z" fill="#ef6b5b" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><rect x="112" y="160" width="16" height="28" rx="5" fill="#ef6b5b" stroke="${INK}" stroke-width="3"/>`;
+  if (cfg.extra === 2) s += `<circle cx="82" cy="110" r="15" fill="#fff" fill-opacity=".25" stroke="${INK}" stroke-width="4"/><circle cx="118" cy="110" r="15" fill="#fff" fill-opacity=".25" stroke="${INK}" stroke-width="4"/><path d="M97 108 Q100 104 103 108" fill="none" stroke="${INK}" stroke-width="4"/>`;
+  if (cfg.extra === 3) s += `<path d="M100 160 L80 150 L80 172 Z M100 160 L120 150 L120 172 Z" fill="#3fb8c9" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><circle cx="100" cy="160" r="5" fill="#2a8a99" stroke="${INK}" stroke-width="3"/>`;
+  if (cfg.extra === 4) s += `<path d="M86 140 L100 160 L114 140" fill="none" stroke="#ef6b5b" stroke-width="6"/><circle cx="100" cy="166" r="11" fill="#f5b53c" stroke="${INK}" stroke-width="3"/><path d="${starPath(100, 166, 5)}" fill="#c9851a"/>`;
+  // hats
+  const H = [
+    "",
+    `<path d="M48 80 Q100 14 152 80 Z" fill="#ef6b5b" stroke="${INK}" stroke-width="4" stroke-linejoin="round"/><rect x="44" y="70" width="112" height="16" rx="8" fill="#c94f42" stroke="${INK}" stroke-width="4"/><circle cx="100" cy="30" r="11" fill="#eef3fb" stroke="${INK}" stroke-width="4"/>`,
+    `<path d="M52 82 Q100 22 148 82 Z" fill="#3fb8c9" stroke="${INK}" stroke-width="4" stroke-linejoin="round"/><path d="M100 76 L166 76 Q174 86 160 90 L100 90 Z" fill="#2a8a99" stroke="${INK}" stroke-width="4" stroke-linejoin="round"/><circle cx="100" cy="40" r="5" fill="#2a8a99"/>`,
+    `<ellipse cx="100" cy="80" rx="70" ry="11" fill="#bfa36b" stroke="${INK}" stroke-width="4"/><path d="M52 78 Q100 12 148 78 Z" fill="#d9c18f" stroke="${INK}" stroke-width="4" stroke-linejoin="round"/><path d="M56 68 Q100 60 144 68" fill="none" stroke="#8a6f3c" stroke-width="6"/>`,
+    `<rect x="68" y="14" width="64" height="60" rx="4" fill="#26272b" stroke="${INK}" stroke-width="4"/><rect x="68" y="54" width="64" height="10" fill="#ef6b5b"/><ellipse cx="100" cy="76" rx="54" ry="9" fill="#26272b" stroke="${INK}" stroke-width="4"/>`,
+    `<path d="M58 80 L58 38 L79 58 L100 26 L121 58 L142 38 L142 80 Z" fill="#f5b53c" stroke="${INK}" stroke-width="4" stroke-linejoin="round"/><circle cx="100" cy="66" r="6" fill="#ef6b5b" stroke="${INK}" stroke-width="2"/><circle cx="76" cy="70" r="4" fill="#3fb8c9"/><circle cx="124" cy="70" r="4" fill="#3fb8c9"/>`
+  ];
+  s += H[cfg.gorro];
+  // companions
+  const P = [
+    "",
+    `<path d="${starPath(164, 42, 16)}" fill="#f5b53c" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><circle cx="160" cy="42" r="2" fill="${INK}"/><circle cx="168" cy="42" r="2" fill="${INK}"/>`,
+    `<circle cx="164" cy="44" r="20" fill="#fff3a0" opacity=".35"/><ellipse cx="156" cy="36" rx="9" ry="5" fill="#fff" opacity=".8" transform="rotate(-30 156 36)"/><ellipse cx="172" cy="36" rx="9" ry="5" fill="#fff" opacity=".8" transform="rotate(30 172 36)"/><circle cx="164" cy="46" r="8" fill="#ffe14d" stroke="${INK}" stroke-width="3"/>`,
+    `<circle cx="164" cy="44" r="15" fill="#8ec9ff" stroke="${INK}" stroke-width="3"/><path d="M178 42 L188 46 L178 50 Z" fill="#f5b53c" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/><circle cx="169" cy="40" r="2.5" fill="${INK}"/><path d="M152 46 Q160 56 166 48" fill="#5ea8ec" stroke="${INK}" stroke-width="2.5"/>`,
+    `<path d="M146 54 Q138 54 140 46 Q140 36 150 38 Q154 26 166 30 Q178 26 182 38 Q192 40 188 50 Q188 56 180 54 Z" fill="#fff" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><circle cx="158" cy="44" r="2.5" fill="${INK}"/><circle cx="170" cy="44" r="2.5" fill="${INK}"/>`,
+    `<path d="M120 70 Q140 52 156 46 L162 56 Q144 62 120 70 Z" fill="#ffe14d" opacity=".6"/><path d="${starPath(166, 44, 14)}" fill="#fff3a0" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>`
+  ];
+  s += P[cfg.amigo];
+  return s + "</svg>";
+}
+
+/* ---------- Themes: each camp has a theme; new themes appear as you climb ---------- */
+const THEMES = {
+  mezcla: { name: "De todo", cats: null },
+  geo: { name: "Geografía", cats: ["Geografía"] },
+  mate: { name: "Matemáticas", cats: ["Matemáticas"] },
+  letras: { name: "Lenguaje y letras", cats: ["Lenguaje", "Literatura"] },
+  cultura: { name: "Cultura general", cats: ["Cultura general"] },
+  ciencia: { name: "Ciencia", cats: ["Química", "Cultura general"] },
+  historia: { name: "Historia", cats: ["Historia", "Cultura general"] },
+  arte: { name: "Arte y música", cats: ["Arte", "Música", "Literatura"] },
+  mundo: { name: "Monedas y países", cats: ["Economía", "Geografía"] },
+  final: { name: "Gran final", cats: null }
+};
+const LEVEL_THEME = [
+  "mezcla", "geo", "mate", "letras", "cultura", "mezcla",
+  "ciencia", "geo", "historia", "arte", "mate", "mezcla",
+  "letras", "ciencia", "mundo", "historia", "arte", "mezcla",
+  "geo", "mate", "ciencia", "letras", "historia", "mezcla",
+  "mundo", "ciencia", "arte", "mate", "historia", "final"
+];
+const themeOf = l => THEMES[LEVEL_THEME[l - 1]];
+const isNewTheme = l => LEVEL_THEME.indexOf(LEVEL_THEME[l - 1]) === l - 1 && THEMES[LEVEL_THEME[l - 1]].cats;
+
+/* ---------- Save ---------- */
+const $ = id => document.getElementById(id);
+const KEY = "cumbre-del-saber-v2";
+const BASE_LIVES = 3, MAX_LIVES = 6, REGEN_MS = 15 * 60 * 1000, STREAK_FOR_LIFE = 10;
+const freshSave = () => ({ stars: {}, best: {}, seen: {}, won: {}, reach: 1, lives: BASE_LIVES, regenAt: null, streak: 0, mistakes: [], practice: false, name: "", slow: false, sound: true, av: { fondo: 0, color: 0, ojos: 0, gorro: 0, extra: 0, amigo: 0 } });
+let save = freshSave();
+const QZ = new Map(); BANK.forEach((zq, z) => zq.forEach(q => QZ.set(q, z)));
+try {
+  const s = JSON.parse(localStorage.getItem(KEY));
+  if (s && s.stars) {
+    save = Object.assign(save, s);
+    if (!s.won) { // older save: every camp with stars counts as won and reached
+      Object.keys(s.stars).forEach(l => { if (s.stars[l] > 0) save.won[l] = 1; });
+      let n = 1; while (n < 30 && s.stars[n] > 0) n++; save.reach = n;
+    }
+  }
+} catch (e) {}
+function persist() { try { localStorage.setItem(KEY, JSON.stringify(save)); } catch (e) {} }
+const unlocked = () => Math.min(TOTAL, Math.max(1, save.reach));
+const zoneOf = lvl => Math.floor((lvl - 1) / PER_ZONE);
+const owns = (cat, item) => item === 0 || !!save.won[levelOf(cat, item)];
+
+// Lives refill one at a time, every 15 minutes, up to 3. Bonus lives can go above 3.
+function regen() {
+  const now = Date.now();
+  if (save.lives >= BASE_LIVES) { save.regenAt = null; return; }
+  if (!save.regenAt) save.regenAt = now + REGEN_MS;
+  while (save.lives < BASE_LIVES && now >= save.regenAt) { save.lives++; save.regenAt += REGEN_MS; }
+  if (save.lives >= BASE_LIVES) save.regenAt = null;
+}
+function loseLife() {
+  save.lives = Math.max(0, save.lives - 1);
+  if (save.lives < BASE_LIVES && !save.regenAt) save.regenAt = Date.now() + REGEN_MS;
+  persist();
+}
+const mmss = ms => { const t = Math.max(0, Math.ceil(ms / 1000)); return Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0"); };
+function paintLives() {
+  regen();
+  const wait = save.regenAt ? " · " + mmss(save.regenAt - Date.now()) : "";
+  $("livesChip").innerHTML = ICON.heart(true) + `<span>${save.lives}${wait}</span>`;
+  $("livesChip").title = save.regenAt ? "Siguiente vida en " + mmss(save.regenAt - Date.now()) : "Vidas";
+  const b = $("waitBanner");
+  if (save.lives <= 0 && !save.practice) { b.hidden = false; b.innerHTML = `<b>Te quedaste sin vidas.</b> Tu próxima vida llega en <span class="tnum">${mmss(save.regenAt - Date.now())}</span>. Mientras, activa el modo práctica para seguir jugando sin vidas.`; }
+  else b.hidden = true;
+}
+setInterval(() => { const before = save.lives; paintLives(); if (save.lives !== before) persist(); }, 1000);
+const fmt = n => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+
+const ICON = {
+  star: on => `<svg viewBox="0 0 24 24"><path fill="${on ? "#f5b53c" : "#2c4166"}" d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.6 7L12 17.3 5.8 20.9l1.6-7L2 9.2l7.1-.6z"/></svg>`,
+  heart: on => `<svg viewBox="0 0 24 24"><path fill="${on ? "#ef6b5b" : "#2c4166"}" d="M12 21s-7.5-4.6-9.6-9.3C1 8.4 3 5 6.4 5c2 0 3.6 1.1 4.6 2.6l1 1.4 1-1.4C14 6.1 15.6 5 17.6 5 21 5 23 8.4 21.6 11.7 19.5 16.4 12 21 12 21z"/></svg>`,
+  lock: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>`,
+  gift: `<svg viewBox="0 0 24 24" fill="none" stroke="#f5b53c" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="9" width="18" height="12" rx="2"/><path d="M12 9v12M3 13h18M12 9C9 9 7 4 9.5 4S12 9 12 9zm0 0c3 0 5-5 2.5-5S12 9 12 9z"/></svg>`,
+  flag: `<svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 21V4"/><path d="M6 4h11l-2.5 4L17 12H6"/></svg>`,
+  soundOn: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>`,
+  soundOff: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 9l5 6M22 9l-5 6"/></svg>`
+};
+
+/* ---------- Sound ---------- */
+let actx = null;
+function tone(freqs, dur = .12, type = "triangle") {
+  if (!save.sound) return;
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    freqs.forEach((f, i) => {
+      const o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime + i * dur;
+      o.type = type; o.frequency.value = f;
+      g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.18, t + .02); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+      o.connect(g).connect(actx.destination); o.start(t); o.stop(t + dur + .02);
+    });
+  } catch (e) {}
+}
+const sfx = {
+  ok: () => tone([660, 880]), bad: () => tone([220, 165], .16, "sawtooth"),
+  tick: () => tone([1200], .04, "square"), win: () => tone([523, 659, 784, 1046], .14), lose: () => tone([392, 330, 262], .2)
+};
+function paintSound() { $("soundBtn").innerHTML = save.sound ? ICON.soundOn : ICON.soundOff; $("soundBtn").setAttribute("aria-label", save.sound ? "Silenciar" : "Activar sonido"); }
+$("soundBtn").onclick = () => { save.sound = !save.sound; persist(); paintSound(); };
+
+/* ---------- Confetti ---------- */
+const fx = $("fx"), cx = fx.getContext("2d");
+let parts = [], fxRun = false;
+function confetti() {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const dpr = window.devicePixelRatio || 1, W = innerWidth, Hh = innerHeight;
+  fx.width = W * dpr; fx.height = Hh * dpr; cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const colors = ["#f5b53c", "#4cc38a", "#ef6b5b", "#8ec9ff", "#c7a6ff", "#eef3fb"];
+  const burst = (x, y, n, dir) => {
+    for (let i = 0; i < n; i++) {
+      const a = dir == null ? Math.random() * Math.PI * 2 : dir + (Math.random() - .5) * 0.9;
+      const v = 6 + Math.random() * 10;
+      parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 3, r: Math.random() * 6, vr: (Math.random() - .5) * .4, w: 6 + Math.random() * 6, h: 3 + Math.random() * 5, c: colors[i % colors.length], life: 0, round: Math.random() < .3 });
+    }
+  };
+  burst(W / 2, Hh * .32, 140, null);
+  burst(0, Hh * .85, 70, -Math.PI / 3);
+  burst(W, Hh * .85, 70, -Math.PI * 2 / 3);
+  setTimeout(() => burst(W / 2, Hh * .3, 90, null), 350);
+  if (!fxRun) { fxRun = true; requestAnimationFrame(stepFx); }
+}
+function stepFx() {
+  const W = innerWidth, Hh = innerHeight;
+  cx.clearRect(0, 0, W, Hh);
+  parts.forEach(p => {
+    p.vy += .28; p.vx *= .985; p.vy *= .985; p.x += p.vx; p.y += p.vy; p.r += p.vr; p.life++;
+    cx.save(); cx.translate(p.x, p.y); cx.rotate(p.r); cx.fillStyle = p.c;
+    cx.globalAlpha = Math.max(0, 1 - p.life / 200);
+    if (p.round) { cx.beginPath(); cx.arc(0, 0, p.h, 0, Math.PI * 2); cx.fill(); }
+    else cx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h * Math.abs(Math.cos(p.life * .15)) + 1);
+    cx.restore();
+  });
+  parts = parts.filter(p => p.y < Hh + 40 && p.life < 200);
+  if (parts.length) requestAnimationFrame(stepFx); else { fxRun = false; cx.clearRect(0, 0, W, Hh); }
+}
+
+/* ---------- Map ---------- */
+const STEP = 100, PAD = 110, GAP = 72;
+function renderMap() {
+  const trail = $("trail"), w = trail.clientWidth || 360;
+  const H = PAD * 2 + (TOTAL - 1) * STEP + (ZONES.length - 1) * GAP;
+  trail.style.height = H + "px";
+  const open = unlocked(), pos = [];
+  for (let l = 1; l <= TOTAL; l++) {
+    const y = H - PAD - (l - 1) * STEP - zoneOf(l) * GAP;
+    const x = w / 2 + Math.sin((l - 1) * 1.15) * Math.min(w * 0.3, 150);
+    pos[l] = { x, y };
+  }
+  let html = "";
+  ZONES.forEach((z, i) => {
+    const top = pos[(i + 1) * PER_ZONE].y - 96, bottom = pos[i * PER_ZONE + 1].y + 64;
+    html += `<div class="zone" style="top:${top}px;height:${bottom - top}px;background:${z.color}"><span class="zone-label">${z.name}<small>${z.label} · ${z.time} s</small></span></div>`;
+  });
+  const curve = upto => { let d = `M${pos[1].x} ${pos[1].y}`; for (let l = 2; l <= upto; l++) { const a = pos[l - 1], b = pos[l], my = (a.y + b.y) / 2; d += ` C${a.x} ${my} ${b.x} ${my} ${b.x} ${b.y}`; } return d; };
+  html += `<svg class="path" viewBox="0 0 ${w} ${H}"><path d="${curve(TOTAL)}" fill="none" stroke="#a9b7d0" stroke-opacity=".35" stroke-width="6" stroke-dasharray="2 14" stroke-linecap="round"/><path d="${curve(open)}" fill="none" stroke="#f5b53c" stroke-width="6" stroke-dasharray="2 14" stroke-linecap="round"/></svg>`;
+  for (let l = 1; l <= TOTAL; l++) {
+    const st = save.stars[l] || 0, isOpen = l <= open, summit = l === TOTAL;
+    const cls = ["node", isOpen ? (st ? "done" : "open") : "locked", l === open && !st ? "current" : "", summit ? "summit" : ""].join(" ");
+    const label = isOpen ? (summit ? ICON.flag : l) : ICON.lock;
+    const stars = st ? `<span class="stars-mini">${[1, 2, 3].map(i => ICON.star(i <= st)).join("")}</span>` : "";
+    html += `<button class="${cls}" style="left:${pos[l].x}px;top:${pos[l].y}px" data-l="${l}" aria-label="Campamento ${l}${isOpen ? "" : " (bloqueado)"}" ${isOpen ? "" : "aria-disabled=\"true\""}>${label}${stars}</button>`;
+    html += `<span class="theme-pill ${isNewTheme(l) ? "new" : ""}" style="left:${pos[l].x}px;top:${pos[l].y + (st ? 58 : 44)}px">${isNewTheme(l) ? "Nuevo: " : ""}${themeOf(l).name}</span>`;
+    if (!st) html += `<span class="prize-tag" style="left:${pos[l].x}px;top:${pos[l].y}px" title="Premio">${ICON.gift}</span>`;
+  }
+  const cp = pos[open], side = cp.x < w / 2 ? 1 : -1;
+  html += `<div class="mini-av" style="left:${cp.x + side * 82}px;top:${cp.y - 6}px">${avatarSVG(save.av)}</div>`;
+  if (save.name) html += `<span class="av-name" style="left:${cp.x + side * 82}px;top:${cp.y + 26}px">${esc(save.name)}</span>`;
+  trail.innerHTML = html;
+  trail.querySelectorAll(".node").forEach(n => n.onclick = () => { const l = +n.dataset.l; if (l <= unlocked()) startLevel(l); });
+  paintLives(); paintControls();
+  $("starCount").textContent = Object.values(save.stars).reduce((a, b) => a + b, 0) + " / " + TOTAL * 3;
+  $("avBtn").innerHTML = avatarSVG(save.av);
+  return pos;
+}
+function paintControls() {
+  $("practiceBtn").setAttribute("aria-pressed", save.practice); $("practiceBtn").querySelector("b").textContent = save.practice ? "Sí" : "No";
+  $("slowBtn").setAttribute("aria-pressed", save.slow); $("slowBtn").querySelector("b").textContent = save.slow ? "Sí" : "No";
+  const n = save.mistakes.filter(k => Q_BY_TEXT.has(k)).length;
+  $("mistakesBtn").hidden = !n; $("mistakesBtn").querySelector("b").textContent = n;
+}
+$("practiceBtn").onclick = () => { save.practice = !save.practice; persist(); paintControls(); paintLives(); };
+$("slowBtn").onclick = () => { save.slow = !save.slow; persist(); paintControls(); };
+$("mistakesBtn").onclick = () => practiceMistakes(save.mistakes);
+function practiceMistakes(keys) {
+  const qs = shuffle(keys.filter(k => Q_BY_TEXT.has(k))).slice(0, 8).map(k => Q_BY_TEXT.get(k));
+  if (!qs.length) return;
+  game = { lvl: 0, z: QZ.get(qs[0]), qs, i: 0, results: [], score: 0, fifty: true, plus: true, lost: 0, practice: true, review: true };
+  $("qLevel").textContent = "Repaso de errores"; $("qZone").textContent = "Práctica · sin vidas";
+  show("quiz"); $("quiz").scrollTop = 0; showQuestion();
+}
+function scrollToCurrent(pos) {
+  const p = pos[unlocked()], trail = $("trail");
+  const y = trail.getBoundingClientRect().top + window.scrollY + p.y - window.innerHeight / 2;
+  window.scrollTo({ top: Math.max(0, y), behavior: "instant" });
+}
+
+/* ---------- Quiz ---------- */
+let game = null, timerId = null;
+const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+// Prefer questions the player hasn't seen, and spread the five across different categories.
+function pickQuestions(lvl) {
+  const z = zoneOf(lvl), pool = BANK[z];
+  let seen = new Set(save.seen[z] || []);
+  let fresh = pool.map((_, i) => i).filter(i => !seen.has(i));
+  if (fresh.length < PER_LEVEL) { seen = new Set(); fresh = pool.map((_, i) => i); }
+  const theme = themeOf(lvl).cats, pick = [];
+  if (theme) {
+    // 4 questions from the camp's theme (unseen first), the last one from anything.
+    const inTheme = i => theme.includes(pool[i][5]);
+    const want = shuffle(fresh.filter(inTheme)).concat(shuffle(pool.map((_, i) => i).filter(i => inTheme(i) && !fresh.includes(i))));
+    while (pick.length < PER_LEVEL - 1 && want.length) pick.push(want.shift());
+  }
+  const byCat = {};
+  shuffle(fresh.filter(i => !pick.includes(i))).forEach(i => (byCat[pool[i][5]] = byCat[pool[i][5]] || []).push(i));
+  const cats = shuffle(Object.keys(byCat));
+  for (let r = 0; pick.length < PER_LEVEL; r = (r + 1) % cats.length) { const c = byCat[cats[r]]; if (c.length) pick.push(c.pop()); }
+  pick.forEach(i => seen.add(i));
+  save.seen[z] = [...seen]; persist();
+  return pick.map(i => pool[i]);
+}
+
+function show(id) { ["map", "quiz", "result", "avatar", "backup"].forEach(s => $(s).hidden = s !== id); }
+
+function startLevel(lvl) {
+  paintLives();
+  if (save.lives <= 0 && !save.practice) { showMap(); $("waitBanner").classList.remove("shake"); void $("waitBanner").offsetWidth; $("waitBanner").classList.add("shake"); $("waitBanner").scrollIntoView({ block: "center" }); return; }
+  const z = zoneOf(lvl);
+  game = { lvl, z, qs: pickQuestions(lvl), i: 0, results: [], score: 0, fifty: true, plus: true, lost: 0, practice: save.practice };
+  $("qLevel").textContent = (lvl === TOTAL ? "La cumbre" : "Campamento " + lvl) + " · " + themeOf(lvl).name;
+  $("qZone").textContent = ZONES[z].name + " · " + ZONES[z].label + (game.practice ? " · Práctica sin vidas" : "");
+  show("quiz"); $("quiz").scrollTop = 0;
+  showQuestion();
+}
+
+function paintHud() {
+  $("lives").hidden = game.practice;
+  $("lives").innerHTML = Array.from({ length: Math.max(BASE_LIVES, save.lives) }, (_, i) => ICON.heart(i < save.lives)).join("");
+  $("progress").innerHTML = game.qs.map((_, i) => `<i class="${game.results[i] === true ? "ok" : game.results[i] === false ? "bad" : i === game.i ? "now" : ""}"></i>`).join("");
+  $("fiftyBtn").disabled = !game.fifty || game.locked;
+  $("timeBtn").disabled = !game.plus || game.locked;
+}
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function showQuestion() {
+  const q = game.qs[game.i];
+  game.order = shuffle([1, 2, 3, 4]);
+  game.locked = false;
+  $("qNum").textContent = `${q[5]} · Pregunta ${game.i + 1} de ${game.qs.length}`;
+  $("qText").textContent = q[0];
+  $("answers").innerHTML = game.order.map((k, idx) => `<button class="ans" data-k="${k}"><span class="k">${"ABCD"[idx]}</span><span>${esc(q[k])}</span></button>`).join("");
+  $("answers").querySelectorAll(".ans").forEach(b => b.onclick = () => answer(+b.dataset.k));
+  $("feedback").innerHTML = ""; $("feedback").className = "feedback";
+  $("nextQ").hidden = true;
+  game.max = timeFor(q); game.left = game.max;
+  paintHud(); runTimer();
+}
+
+// Base time by zone, plus extra for long questions and harder math; "tiempo ampliado" gives 50 % more.
+function timeFor(q) {
+  const z = QZ.get(q) ?? game.z, len = q[0].length;
+  let t = ZONES[z].time + (len > 70 ? 4 : len > 45 ? 2 : 0) + (q[5] === "Matemáticas" && z >= 2 ? 5 : 0);
+  return Math.round(t * (save.slow ? 1.5 : 1));
+}
+function runTimer() {
+  clearInterval(timerId);
+  let lastSec = Math.ceil(game.left);
+  game.timerStart = performance.now(); game.timerStartLeft = game.left;
+  const draw = () => {
+    game.left = Math.max(0, game.timerStartLeft - (performance.now() - game.timerStart) / 1000);
+    const pct = game.left / game.max * 100, f = $("timerFill");
+    f.style.width = Math.min(100, pct) + "%";
+    f.className = "timer-fill" + (pct < 25 ? " danger" : pct < 50 ? " warn" : "");
+    const s = Math.ceil(game.left);
+    $("secs").textContent = s;
+    if (s !== lastSec) { lastSec = s; if (s <= 3 && s > 0) sfx.tick(); }
+    if (game.left <= 0) { clearInterval(timerId); answer(null); }
+  };
+  draw(); timerId = setInterval(draw, 100);
+}
+
+function answer(k) {
+  if (game.locked) return;
+  game.locked = true; clearInterval(timerId);
+  const ok = k === 1;
+  $("answers").querySelectorAll(".ans").forEach(b => {
+    b.disabled = true;
+    const bk = +b.dataset.k;
+    if (bk === 1) b.classList.add("right");
+    else if (bk === k) b.classList.add("wrong");
+  });
+  const fb = $("feedback"), q = game.qs[game.i], key = q[0] + "|" + q[1];
+  let head;
+  if (ok) {
+    const pts = 100 + Math.round(game.left / game.max * 100);
+    game.score += pts;
+    head = game.practice ? "¡Correcto!" : `¡Correcto! +${pts} puntos`; fb.className = "feedback ok"; sfx.ok();
+    save.mistakes = save.mistakes.filter(m => m !== key);
+  } else {
+    if (!game.practice) { loseLife(); game.lost++; }
+    head = (k === null ? "Se acabó el tiempo." : "Incorrecto.") + ` La respuesta era: ${q[1]}.`;
+    fb.className = "feedback bad"; sfx.bad();
+    if (!save.mistakes.includes(key)) save.mistakes = [key, ...save.mistakes].slice(0, 60);
+  }
+  persist();
+  fb.innerHTML = `<div>${esc(head)}</div><p class="why">${esc(q[6] || "")}</p>`;
+  game.results[game.i] = ok;
+  paintHud();
+  const last = (!game.practice && save.lives <= 0) || game.i + 1 >= game.qs.length;
+  $("nextQ").textContent = last ? "Ver resultado" : "Siguiente pregunta";
+  $("nextQ").hidden = false; $("nextQ").focus({ preventScroll: true });
+  $("nextQ").scrollIntoView({ block: "nearest" });
+}
+$("nextQ").onclick = () => {
+  if (!game || !game.locked) return;
+  game.i++;
+  if ((!game.practice && save.lives <= 0) || game.i >= game.qs.length) finish();
+  else showQuestion();
+};
+
+$("fiftyBtn").onclick = () => {
+  if (!game.fifty || game.locked) return;
+  game.fifty = false;
+  const wrong = shuffle([2, 3, 4]).slice(0, 2);
+  $("answers").querySelectorAll(".ans").forEach(b => { if (wrong.includes(+b.dataset.k)) { b.disabled = true; b.classList.add("gone"); } });
+  paintHud();
+};
+$("timeBtn").onclick = () => {
+  if (!game.plus || game.locked) return;
+  game.plus = false;
+  game.left += 10; game.max = Math.max(game.max, game.left);
+  runTimer(); paintHud();
+};
+$("quitBtn").onclick = () => { clearInterval(timerId); game = null; showMap(); };
+
+function finish() {
+  if (game.practice) return finishPractice();
+  const correct = game.results.filter(Boolean).length;
+  const passed = correct >= 3, stars = passed ? correct - 2 : 0, lvl = game.lvl;
+  const firstWin = passed && !save.won[lvl], outOfLives = save.lives <= 0;
+  if (stars > (save.stars[lvl] || 0)) save.stars[lvl] = stars;
+  let extraLife = false;
+  if (passed) {
+    save.won[lvl] = 1;
+    if (lvl >= save.reach && lvl < TOTAL) save.reach = lvl + 1;
+    save.streak++;
+    if (save.streak % STREAK_FOR_LIFE === 0 && save.lives < MAX_LIVES) { save.lives++; extraLife = true; regen(); }
+  } else {
+    save.streak = 0;
+  }
+  if (game.score > (save.best[lvl] || 0)) save.best[lvl] = game.score;
+  persist();
+  show("result"); $("result").scrollTop = 0;
+  $("bigStars").innerHTML = [1, 2, 3].map(i => ICON.star(i <= stars).replace("<svg", `<svg class="${i <= stars ? "on" : ""}"`)).join("");
+  let title, text;
+  if (passed && lvl === TOTAL) { title = "¡Llegaste a la cumbre!"; text = "Respondiste las preguntas más difíciles de la montaña. Intenta conseguir las 3 estrellas en todos los campamentos."; }
+  else if (passed) { title = stars === 3 ? "¡Perfecto!" : "¡Campamento superado!"; text = lvl % PER_ZONE === 0 ? `Terminaste la zona ${ZONES[game.z].name}. Lo que sigue es más difícil y con menos tiempo.` : "El siguiente campamento ya está abierto."; }
+  else if (outOfLives) { title = "Te quedaste sin vidas"; text = `Este intento terminó, pero conservas todos los campamentos que ya ganaste. Tu próxima vida llega en ${mmss(save.regenAt - Date.now())}; mientras, puedes jugar en modo práctica.`; }
+  else { title = "Casi lo logras"; text = "Necesitas al menos 3 respuestas correctas para seguir subiendo y ganar el premio. Vuelve a intentarlo."; }
+  if (passed) text += save.streak % STREAK_FOR_LIFE === 0 ? "" : ` Racha: ${save.streak % STREAK_FOR_LIFE} de ${STREAK_FOR_LIFE} niveles seguidos para ganar una vida extra.`;
+  if (extraLife) text = "¡Ganaste una vida extra por superar 10 niveles seguidos sin perder! " + text;
+  if (passed && save.name.trim()) title = title.replace(/!$/, `, ${save.name.trim()}!`);
+  $("rTitle").textContent = title; $("rText").textContent = text;
+  $("tally").innerHTML = `<span class="chip">${correct} de ${PER_LEVEL} correctas</span><span class="chip">${game.score} puntos</span><span class="chip">Récord: ${save.best[lvl] || 0}</span>`;
+  const rw = rewardOf(lvl), cat = AV[rw.cat];
+  if (firstWin) {
+    const preview = Object.assign({}, save.av, { [cat.key]: rw.item });
+    $("prizeBox").innerHTML = `<div class="prize"><div class="pic">${avatarSVG(preview)}</div><div class="txt"><small>Premio nuevo · ${cat.name}</small><b>${cat.items[rw.item]}</b><button id="wearBtn">Ponérmelo</button></div></div>`;
+    $("wearBtn").onclick = function () { save.av[cat.key] = rw.item; persist(); this.textContent = "¡Puesto!"; this.disabled = true; };
+  } else $("prizeBox").innerHTML = "";
+  const btns = [];
+  if (passed && lvl < TOTAL) btns.push(`<button class="btn" id="nextBtn">Siguiente campamento</button>`);
+  btns.push(`<button class="btn ${passed && lvl < TOTAL ? "ghost" : ""}" id="retryBtn">Repetir</button>`);
+  btns.push(`<button class="btn ${outOfLives ? "" : "ghost"}" id="mapBtn">Ver mapa</button>`);
+  if (game.results.includes(false)) btns.push(`<button class="btn ghost" id="missBtn">Practicar mis errores</button>`);
+  $("rBtns").innerHTML = btns.join("");
+  if ($("nextBtn")) $("nextBtn").onclick = () => startLevel(lvl + 1);
+  $("retryBtn").onclick = () => startLevel(Math.min(lvl, unlocked()));
+  if (outOfLives) $("retryBtn").remove();
+  $("mapBtn").onclick = showMap;
+  paintReview(btns);
+  if (passed) { sfx.win(); confetti(); } else sfx.lose();
+  persist();
+}
+
+function paintReview() {
+  const g = game;
+  $("review").innerHTML = g.qs.slice(0, g.results.length).map((q, i) => `<div class="${g.results[i] ? "" : "x"}">${esc(q[0])}<br><b>${g.results[i] ? "✓" : "✗"} ${esc(q[1])}</b><span class="why">${esc(q[6] || "")}</span></div>`).join("");
+  if ($("missBtn")) $("missBtn").onclick = () => practiceMistakes(g.qs.filter((q, i) => g.results[i] === false).map(q => q[0] + "|" + q[1]));
+}
+function finishPractice() {
+  const correct = game.results.filter(Boolean).length, n = game.qs.length, good = correct >= Math.ceil(n * .6);
+  show("result"); $("result").scrollTop = 0;
+  $("bigStars").innerHTML = "";
+  $("rTitle").textContent = game.review ? "Repaso terminado" : "Práctica terminada";
+  $("rText").textContent = (game.review ? "Las preguntas que acertaste salen de tu lista de errores. " : "") + "En práctica no se usan vidas ni se ganan estrellas, récords o premios.";
+  $("tally").innerHTML = `<span class="chip">${correct} de ${n} correctas</span>`;
+  $("prizeBox").innerHTML = "";
+  const btns = [];
+  if (game.lvl) btns.push(`<button class="btn" id="retryBtn">Repetir</button>`);
+  if (game.results.includes(false)) btns.push(`<button class="btn ${game.lvl ? "ghost" : ""}" id="missBtn">Practicar mis errores</button>`);
+  btns.push(`<button class="btn ghost" id="mapBtn">Ver mapa</button>`);
+  $("rBtns").innerHTML = btns.join("");
+  const lvl = game.lvl;
+  if ($("retryBtn")) $("retryBtn").onclick = () => startLevel(lvl);
+  $("mapBtn").onclick = showMap;
+  paintReview();
+  if (good) { sfx.win(); confetti(); } else sfx.lose();
+}
+
+/* ---------- Backup ---------- */
+const CODE_PREFIX = "CUMBRE1:";
+function exportCode() { return CODE_PREFIX + btoa(unescape(encodeURIComponent(JSON.stringify(save)))); }
+$("backupBtn").onclick = () => { show("backup"); $("backup").scrollTop = 0; $("exportBox").value = exportCode(); $("importBox").value = ""; $("backupMsg").textContent = ""; };
+$("bkBack").onclick = showMap;
+$("copyBtn").onclick = async () => {
+  const box = $("exportBox");
+  try { await navigator.clipboard.writeText(box.value); $("backupMsg").textContent = "Código copiado. Guárdalo en tus notas o mándatelo por mensaje."; }
+  catch (e) { box.focus(); box.select(); $("backupMsg").textContent = "Selecciona el código y cópialo manualmente."; }
+};
+$("importBtn").onclick = () => {
+  const raw = $("importBox").value.trim();
+  try {
+    if (!raw.startsWith(CODE_PREFIX)) throw 0;
+    const data = JSON.parse(decodeURIComponent(escape(atob(raw.slice(CODE_PREFIX.length)))));
+    if (!data || typeof data.stars !== "object") throw 0;
+    save = Object.assign(freshSave(), data); persist();
+    $("backupMsg").textContent = "Partida cargada."; $("exportBox").value = exportCode();
+  } catch (e) { $("backupMsg").textContent = "Ese código no es válido. Copia el código completo, empieza con CUMBRE1:"; }
+};
+
+/* ---------- Avatar screen ---------- */
+function renderAvatar() {
+  $("avBig").innerHTML = avatarSVG(save.av);
+  let owned = 0;
+  $("avCats").innerHTML = AV.map((cat, ci) => `<div class="av-cat"><h3>${cat.name}</h3><div class="av-grid">${cat.items.map((name, ii) => {
+    const have = owns(ci, ii); if (have && ii) owned++;
+    const on = save.av[cat.key] === ii;
+    const pv = avatarSVG(Object.assign({}, save.av, { [cat.key]: ii }), "pv");
+    return `<button class="tile ${on ? "on" : ""} ${have ? "" : "locked"}" data-c="${ci}" data-i="${ii}" ${have ? "" : "aria-disabled=\"true\""} aria-pressed="${on}">${pv}${have ? "" : `<span class="lk">${ICON.lock}Nivel ${levelOf(ci, ii)}</span>`}<span>${name}</span></button>`;
+  }).join("")}</div></div>`).join("");
+  $("avCount").textContent = `${owned} de ${TOTAL} premios ganados`;
+  $("avTitle").textContent = save.name || "Mi explorador";
+  if (document.activeElement !== $("avName")) $("avName").value = save.name;
+  $("avCats").querySelectorAll(".tile").forEach(t => t.onclick = () => {
+    const ci = +t.dataset.c, ii = +t.dataset.i;
+    if (!owns(ci, ii)) return;
+    save.av[AV[ci].key] = ii; persist(); renderAvatar();
+  });
+}
+$("avBtn").onclick = () => { if (game) { clearInterval(timerId); game = null; } show("avatar"); $("avatar").scrollTop = 0; renderAvatar(); };
+$("avBack").onclick = showMap;
+$("avName").addEventListener("input", e => { save.name = e.target.value.replace(/\s+/g, " ").trimStart().slice(0, 16); persist(); $("avTitle").textContent = save.name.trim() || "Mi explorador"; $("avBtn").setAttribute("aria-label", save.name.trim() || "Mi explorador"); });
+$("avName").addEventListener("change", e => { save.name = save.name.trim(); e.target.value = save.name; persist(); });
+
+function showMap() {
+  show("map");
+  const pos = renderMap(); scrollToCurrent(pos);
+}
+
+$("resetBtn").onclick = function () {
+  if (this.dataset.armed) { const snd = save.sound; save = freshSave(); save.sound = snd; persist(); delete this.dataset.armed; this.textContent = "Empezar de cero"; showMap(); return; }
+  this.dataset.armed = "1"; this.textContent = "Toca otra vez para borrar tu progreso";
+  setTimeout(() => { delete this.dataset.armed; this.textContent = "Empezar de cero"; }, 4000);
+};
+document.addEventListener("keydown", e => {
+  if (!game || $("quiz").hidden) return;
+  if (game.locked) { if ((e.key === "Enter" || e.key === " ") && !$("nextQ").hidden && document.activeElement !== $("nextQ")) { e.preventDefault(); $("nextQ").click(); } return; }
+  const idx = "abcd1234".indexOf(e.key.toLowerCase()) % 4;
+  if (idx >= 0) { const b = $("answers").querySelectorAll(".ans")[idx]; if (b && !b.disabled) b.click(); }
+});
+let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => { if (!$("map").hidden) renderMap(); }, 150); });
+
+$("qTotal").textContent = fmt(Q_TOTAL);
+paintSound(); showMap();
+</script>
+
+</body>
+</html>
