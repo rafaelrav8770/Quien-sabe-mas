@@ -6,7 +6,9 @@ Juego de preguntas y respuestas en español: sube la montaña respondiendo trivi
 
 Abre `index.html` en cualquier navegador. No necesita instalación ni servidor.
 
+- Al abrir el juego, una intro corta explica en qué consiste y te deja ponerle nombre a tu explorador.
 - 5 zonas (Valle, Bosque, Glaciar, Picos y Cumbre), de fácil a experto, con 6 campamentos cada una: 30 niveles.
+- La dificultad sube poco a poco: cada campamento es un poco más difícil que el anterior y el tiempo baja de 22 a 10 segundos.
 - Cada campamento tiene un tema y 5 preguntas con tiempo. Acierta al menos 3 para abrir el siguiente.
 - Más de 1.000 preguntas, cada una con su explicación al responder.
 - Vidas que se recuperan con el tiempo, comodines 50:50 y +10 segundos, y estrellas por nivel.

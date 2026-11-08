@@ -244,6 +244,31 @@ button:focus-visible { outline: 3px solid var(--lantern); outline-offset: 3px; }
 .name-row input { background: var(--night-2); color: var(--snow); border: 2px solid var(--ridge); border-radius: 14px; padding: 10px 14px; font: 600 1.1rem var(--display); text-align: center; }
 .name-row input:focus { outline: none; border-color: var(--lantern); }
 .av-name { position: absolute; transform: translateX(-50%); white-space: nowrap; pointer-events: none; font-family: var(--display); font-weight: 600; font-size: .78rem; padding: 1px 8px; border-radius: 999px; background: var(--lantern); color: var(--night); }
+.intro-screen { z-index: 30; }
+.intro-wrap { min-height: 100%; box-sizing: border-box; display: grid; grid-template-rows: auto auto auto 1fr auto; gap: 14px; padding-block: 16px 28px; max-width: 480px; }
+.slide-top { display: flex; align-items: center; justify-content: space-between; }
+.dots { display: flex; gap: 6px; }
+.dots i { width: 8px; height: 8px; border-radius: 4px; background: var(--ridge); transition: width .2s; }
+.dots i.on { width: 22px; background: var(--lantern); }
+.skip { background: none; border: 0; color: var(--mist); font-weight: 800; text-decoration: underline; }
+.slide-art { display: grid; place-items: center; min-height: 170px; }
+.slide-art .big { width: 160px; height: 160px; border-radius: 30px; overflow: hidden; box-shadow: 0 8px 0 rgba(0,0,0,.3); }
+.slide-art .big svg { width: 100%; height: 100%; display: block; }
+.climb { display: grid; gap: 6px; width: 100%; max-width: 300px; }
+.climb div { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; border-radius: 12px; font-weight: 800; color: var(--snow); }
+.climb small { font-weight: 700; opacity: .85; }
+.icons { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+.icons span { display: grid; justify-items: center; gap: 4px; background: var(--night-2); border: 1px solid var(--ridge); border-radius: 16px; padding: 12px; min-width: 76px; font-weight: 800; font-size: .8rem; }
+.icons svg { width: 30px; height: 30px; }
+#slideTitle { font-family: var(--display); font-weight: 700; font-size: 1.7rem; margin: 0; text-align: center; text-wrap: balance; }
+.slide-body { color: var(--mist); line-height: 1.55; font-size: 1.02rem; }
+.slide-body p { margin: 0 0 10px; text-align: center; }
+.slide-body ul { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
+.slide-body b { color: var(--snow); }
+.slide-body .name-row { margin: 6px auto 0; }
+.slide-body .check { display: flex; gap: 8px; align-items: center; justify-content: center; margin-top: 14px; font-size: .9rem; }
+.slide-nav { display: flex; gap: 10px; }
+.slide-nav .btn { flex: 1; }
 #fx { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 40; }
 </style>
 
@@ -260,10 +285,11 @@ button:focus-visible { outline: 3px solid var(--lantern); outline-offset: 3px; }
 <main id="map">
   <div class="wrap intro">
     <h1>Sube la montaña respondiendo preguntas</h1>
-    <p>Hay <b id="qTotal">más de 1.000</b> preguntas. Cada campamento tiene un tema y 5 preguntas con tiempo: acierta al menos 3 para abrir el siguiente y ganar un premio para tu explorador. Cada error cuesta una vida y se recupera una cada 15 minutos (hasta 3). Si te quedas sin vidas, el intento termina aunque aún pudieras llegar a 3 aciertos, pero nunca pierdes campamentos ganados. Supera 10 seguidos sin reprobar y ganas una vida extra que se suma por encima de 3, hasta 6.</p>
+    <p>Responde preguntas para subir la montaña. Las primeras son fáciles y cada campamento es un poco más difícil, hasta llegar a la cumbre. Hay <b id="qTotal">más de 1.000</b> preguntas.</p>
     <div class="controls">
       <button class="toggle" id="practiceBtn" aria-pressed="false">Modo práctica: <b>No</b></button>
       <button class="toggle" id="slowBtn" aria-pressed="false">Tiempo ampliado: <b>No</b></button>
+      <button class="toggle" id="helpBtn">Cómo jugar</button>
       <button class="toggle" id="mistakesBtn" hidden>Repasar mis errores (<b>0</b>)</button>
     </div>
     <p class="hint">En práctica no se usan vidas, pero tampoco se ganan estrellas, récords ni premios.</p>
@@ -334,6 +360,19 @@ button:focus-visible { outline: 3px solid var(--lantern); outline-offset: 3px; }
       <textarea id="importBox" rows="4" placeholder="CUMBRE1:..."></textarea>
       <button class="btn ghost" id="importBtn">Cargar partida</button>
       <p class="feedback ok" id="backupMsg" aria-live="polite"></p>
+    </div>
+  </div>
+</section>
+
+<section class="screen intro-screen" id="introScreen" hidden aria-labelledby="slideTitle">
+  <div class="wrap intro-wrap">
+    <div class="slide-top"><div class="dots" id="dots"></div><button class="skip" id="skipIntro">Saltar</button></div>
+    <div class="slide-art" id="slideArt"></div>
+    <h2 id="slideTitle"></h2>
+    <div class="slide-body" id="slideBody"></div>
+    <div class="slide-nav">
+      <button class="btn ghost" id="prevSlide">Atrás</button>
+      <button class="btn" id="nextSlide">Siguiente</button>
     </div>
   </div>
 </section>
@@ -973,81 +1012,91 @@ function near(n, spread, min = 0) {
 }
 const BANK = [[], [], [], [], []], seenText = new Set();
 // Each question: [pregunta, correcta, mala, mala, mala, tema, explicación]
+// D = how hard the question is inside its zone (0 easiest, 1 hardest); set before each add().
+let D = .5;
 function add(z, cat, q, a, w, exp, key = q) {
   a = String(a);
   if (w.length < 3 || new Set([a, ...w.slice(0, 3)]).size < 4 || seenText.has(key)) return;
-  seenText.add(key); BANK[z].push([q, a, w[0], w[1], w[2], cat, exp]);
+  seenText.add(key); BANK[z].push([q, a, w[0], w[1], w[2], cat, exp, z + Math.min(.99, Math.max(0, D))]);
 }
 const cap1 = s => s.charAt(0).toUpperCase() + s.slice(1);
 
-HAND.forEach((zone, z) => zone.forEach((q, i) => add(z, "Cultura general", q[0], q[1], q.slice(2), HAND_EXP[z][i])));
+HAND.forEach((zone, z) => zone.forEach((q, i) => ((D = z === 0 ? .3 : .5), 1) && add(z, "Cultura general", q[0], q[1], q.slice(2), HAND_EXP[z][i])));
 
-const ctry = rows(COUNTRIES).map(([c, cap, cont, z]) => ({ c, cap, cont, z: +z }));
+const rank = list => { const cnt = {}, seen = {}; list.forEach(x => cnt[x.z] = (cnt[x.z] || 0) + 1); list.forEach(x => { seen[x.z] = (seen[x.z] || 0) + 1; x.r = cnt[x.z] > 1 ? (seen[x.z] - 1) / (cnt[x.z] - 1) : .5; }); return list; };
+const ctry = rank(rows(COUNTRIES).map(([c, cap, cont, z]) => ({ c, cap, cont, z: +z })));
 const nearZone = (list, z) => list.filter(x => Math.abs(x.z - z) <= 1);
 ctry.forEach(x => {
   const pool = nearZone(ctry, x.z), e = `${x.cap} es la capital de ${x.c}.`;
+  D = .1 + .6 * x.r;
   add(x.z, "Geografía", `¿Cuál es la capital de ${x.c}?`, x.cap, others(pool.map(p => p.cap), 3, [x.cap]), e);
+  D = .3 + .6 * x.r;
   if (!x.cap.includes(x.c) && !x.c.includes(x.cap)) add(x.z, "Geografía", `¿De qué país es capital ${x.cap}?`, x.c, others(pool.map(p => p.c), 3, [x.c]), e);
+  D = .15 + .5 * x.r;
   if (x.cont) add(Math.max(0, x.z - 1), "Geografía", `¿En qué continente está ${x.c}?`, x.cont, others(["Europa", "América", "Asia", "África", "Oceanía"], 3, [x.cont]), `${x.c} está en ${x.cont}; su capital es ${x.cap}.`);
 });
 
-const els = rows(ELEMENTS).map(([n, s, z]) => ({ n, s, z: +z }));
+const els = rank(rows(ELEMENTS).map(([n, s, z]) => ({ n, s, z: +z })));
 els.forEach(x => {
   const pool = nearZone(els, x.z), e = `El símbolo químico del ${x.n.toLowerCase()} es ${x.s}.` + (x.s[0] !== x.n[0] ? " Viene de su nombre en latín o en otro idioma." : "");
+  D = .1 + .7 * x.r;
   add(x.z, "Química", `¿Cuál es el símbolo químico del elemento ${x.n.toLowerCase()}?`, x.s, others(pool.map(p => p.s), 3, [x.s]), e);
+  D = .25 + .7 * x.r;
   add(x.z, "Química", `¿Qué elemento tiene el símbolo ${x.s}?`, x.n, others(pool.map(p => p.n), 3, [x.n]), e);
 });
 
-const works = rows(WORKS).map(([t, a, z, k]) => ({ t, a, z: +z, k }));
+const works = rank(rows(WORKS).map(([t, a, z, k]) => ({ t, a, z: +z, k })));
 const VERB = { e: "escribió", p: "pintó", c: "compuso" }, KIND = { e: "Literatura", p: "Arte", c: "Música" };
 works.forEach(x => {
   const same = works.filter(w => w.k === x.k && w.a !== x.a), e = `${x.a} ${VERB[x.k]} «${x.t}».`;
+  D = .1 + .6 * x.r;
   add(x.z, KIND[x.k], `¿Quién ${VERB[x.k]} «${x.t}»?`, x.a, others(same.map(w => w.a), 3, [x.a]), e);
+  D = .2 + .3 * x.r;
   add(Math.min(4, x.z + 1), KIND[x.k], `¿Cuál de estas obras ${VERB[x.k]} ${x.a}?`, x.t, others(same.map(w => w.t), 3, [x.t]), e);
 });
 
-rows(EVENTS).forEach(([e, y, z]) => add(+z, "Historia", `¿En qué año fue ${e}?`, y, near(+y, +z < 2 ? 12 : 25, 1), `${cap1(e)} fue en ${y}.`));
+rank(rows(EVENTS).map(([e, y, z]) => ({ e, y, z: +z }))).forEach(({ e, y, z, r }) => ((D = .1 + .8 * r), 1) && add(+z, "Historia", `¿En qué año fue ${e}?`, y, near(+y, +z < 2 ? 12 : 25, 1), `${cap1(e)} fue en ${y}.`));
 
-const money = rows(MONEY).map(([c, m, z]) => ({ c, m, z: +z }));
+const money = rank(rows(MONEY).map(([c, m, z]) => ({ c, m, z: +z })));
 const bare = m => m.replace(/^(el|la) /, "");
-money.forEach(x => add(x.z, "Economía", `¿Cuál es la moneda oficial de ${x.c}?`, bare(x.m), others(money.map(p => bare(p.m)), 3, [bare(x.m), "rupia"]), `La moneda de ${x.c} es ${x.m}.`));
+money.forEach(x => ((D = .1 + .8 * x.r), 1) && add(x.z, "Economía", `¿Cuál es la moneda oficial de ${x.c}?`, bare(x.m), others(money.map(p => bare(p.m)), 3, [bare(x.m), "rupia"]), `La moneda de ${x.c} es ${x.m}.`));
 
-const opp = rows(OPPOSITES).map(([w, o, z]) => ({ w, o, z: +z }));
-opp.forEach(x => add(x.z, "Lenguaje", `¿Cuál es lo contrario de «${x.w}»?`, x.o, others(opp.filter(p => p.z === x.z && p !== x).map(p => p.o), 3, [x.o, x.w]), `Lo contrario de «${x.w}» es «${x.o}».`));
+const opp = rank(rows(OPPOSITES).map(([w, o, z]) => ({ w, o, z: +z })));
+opp.forEach(x => ((D = .1 + .8 * x.r), 1) && add(x.z, "Lenguaje", `¿Cuál es lo contrario de «${x.w}»?`, x.o, others(opp.filter(p => p.z === x.z && p !== x).map(p => p.o), 3, [x.o, x.w]), `Lo contrario de «${x.w}» es «${x.o}».`));
 
 // Matemáticas
 const M = "Matemáticas", sp = n => Math.max(3, Math.round(n * .15));
-for (let i = 0; i < 40; i++) { const a = ri(2, 20), b = ri(2, 20); add(0, M, `¿Cuánto es ${a} + ${b}?`, a + b, near(a + b, 4, 0), `${a} + ${b} = ${a + b}.`); }
-for (let i = 0; i < 40; i++) { const a = ri(10, 30), b = ri(1, a - 1); add(0, M, `¿Cuánto es ${a} − ${b}?`, a - b, near(a - b, 4, 0), `${a} − ${b} = ${a - b}. Comprueba: ${a - b} + ${b} = ${a}.`); }
-for (let i = 0; i < 45; i++) { const a = ri(2, 10), b = ri(2, 10); add(1, M, `¿Cuánto es ${a} × ${b}?`, a * b, near(a * b, sp(a * b), 1), `${a} × ${b} = ${a * b}.`); }
-for (let i = 0; i < 30; i++) { const b = ri(2, 10), q = ri(2, 10); add(1, M, `¿Cuánto es ${b * q} ÷ ${b}?`, q, near(q, 3, 1), `${b * q} ÷ ${b} = ${q}, porque ${b} × ${q} = ${b * q}.`); }
-for (let i = 0; i < 25; i++) { const a = ri(12, 99), b = ri(3, 9), t = Math.floor(a / 10) * 10, u = a % 10; add(2, M, `¿Cuánto es ${a} × ${b}?`, a * b, near(a * b, sp(a * b), 1), u ? `${t} × ${b} = ${t * b} y ${u} × ${b} = ${u * b}; ${t * b} + ${u * b} = ${a * b}.` : `${a} × ${b} = ${a * b}.`); }
-for (let n = 11; n <= 25; n++) add(2, M, `¿Cuánto es ${n}²?`, n * n, near(n * n, sp(n * n), 1), `${n}² = ${n} × ${n} = ${n * n}.`);
-for (let i = 0; i < 25; i++) { const p = [10, 20, 25, 50, 75][ri(0, 4)], base = ri(2, 20) * 20, v = base * p / 100; add(2, M, `¿Cuánto es el ${p} % de ${base}?`, v, near(v, sp(v), 1), `El ${p} % de ${base} es ${base} × ${p} ÷ 100 = ${v}.`); }
+for (let i = 0; i < 40; i++) { const a = ri(2, 20), b = ri(2, 20); D = (a + b) / 45; add(0, M, `¿Cuánto es ${a} + ${b}?`, a + b, near(a + b, 4, 0), `${a} + ${b} = ${a + b}.`); }
+for (let i = 0; i < 40; i++) { const a = ri(10, 30), b = ri(1, a - 1); D = a / 32 + .05; add(0, M, `¿Cuánto es ${a} − ${b}?`, a - b, near(a - b, 4, 0), `${a} − ${b} = ${a - b}. Comprueba: ${a - b} + ${b} = ${a}.`); }
+for (let i = 0; i < 45; i++) { const a = ri(2, 10), b = ri(2, 10); D = a * b / 110; add(1, M, `¿Cuánto es ${a} × ${b}?`, a * b, near(a * b, sp(a * b), 1), `${a} × ${b} = ${a * b}.`); }
+for (let i = 0; i < 30; i++) { const b = ri(2, 10), q = ri(2, 10); D = b * q / 110 + .1; add(1, M, `¿Cuánto es ${b * q} ÷ ${b}?`, q, near(q, 3, 1), `${b * q} ÷ ${b} = ${q}, porque ${b} × ${q} = ${b * q}.`); }
+for (let i = 0; i < 25; i++) { const a = ri(12, 99), b = ri(3, 9), t = Math.floor(a / 10) * 10, u = a % 10; D = a * b / 900; add(2, M, `¿Cuánto es ${a} × ${b}?`, a * b, near(a * b, sp(a * b), 1), u ? `${t} × ${b} = ${t * b} y ${u} × ${b} = ${u * b}; ${t * b} + ${u * b} = ${a * b}.` : `${a} × ${b} = ${a * b}.`); }
+for (let n = 11; n <= 25; n++) ((D = (n - 11) / 15), 1) && add(2, M, `¿Cuánto es ${n}²?`, n * n, near(n * n, sp(n * n), 1), `${n}² = ${n} × ${n} = ${n * n}.`);
+for (let i = 0; i < 25; i++) { const p = [10, 20, 25, 50, 75][ri(0, 4)], base = ri(2, 20) * 20, v = base * p / 100; D = { 50: .15, 10: .3, 20: .4, 25: .5, 75: .7 }[p] + base / 2000; add(2, M, `¿Cuánto es el ${p} % de ${base}?`, v, near(v, sp(v), 1), `El ${p} % de ${base} es ${base} × ${p} ÷ 100 = ${v}.`); }
 for (let i = 0; i < 40; i++) {
-  const x = ri(2, 15), a = ri(2, 9), b = ri(1, 20), t = i % 3;
+  const x = ri(2, 15), a = ri(2, 9), b = ri(1, 20), t = i % 3; D = [.15, .4, .7][t] + x / 60;
   if (t === 0) add(3, M, `Si x + ${b} = ${x + b}, ¿cuánto vale x?`, x, near(x, 4, 0), `x = ${x + b} − ${b} = ${x}.`);
   if (t === 1) add(3, M, `Si ${a}x = ${a * x}, ¿cuánto vale x?`, x, near(x, 4, 1), `x = ${a * x} ÷ ${a} = ${x}.`);
   if (t === 2) add(3, M, `Si ${a}x + ${b} = ${a * x + b}, ¿cuánto vale x?`, x, near(x, 4, 1), `Primero resta ${b}: ${a}x = ${a * x}. Luego divide entre ${a}: x = ${x}.`);
 }
-for (let n = 13; n <= 30; n++) add(3, M, `¿Cuál es la raíz cuadrada de ${n * n}?`, n, near(n, 3, 1), `√${n * n} = ${n}, porque ${n} × ${n} = ${n * n}.`);
-for (let n = 5; n <= 12; n++) add(3, M, `¿Cuánto es 2 elevado a ${n}?`, 2 ** n, [2 ** (n - 1), 2 ** (n + 1), n * n * 2].map(String), `2 elevado a ${n} es 2 multiplicado ${n} veces: ${2 ** n}. Cada vez que sube 1, se duplica.`);
-for (let n = 3; n <= 7; n++) add(3, M, `¿Cuánto es 3 elevado a ${n}?`, 3 ** n, [3 ** (n - 1), 3 ** (n + 1), 2 ** n * 3].map(String), `3 elevado a ${n} es 3 multiplicado ${n} veces: ${3 ** n}.`);
+for (let n = 13; n <= 30; n++) ((D = (n - 13) / 18), 1) && add(3, M, `¿Cuál es la raíz cuadrada de ${n * n}?`, n, near(n, 3, 1), `√${n * n} = ${n}, porque ${n} × ${n} = ${n * n}.`);
+for (let n = 5; n <= 12; n++) ((D = (n - 5) / 8 + .05), 1) && add(3, M, `¿Cuánto es 2 elevado a ${n}?`, 2 ** n, [2 ** (n - 1), 2 ** (n + 1), n * n * 2].map(String), `2 elevado a ${n} es 2 multiplicado ${n} veces: ${2 ** n}. Cada vez que sube 1, se duplica.`);
+for (let n = 3; n <= 7; n++) ((D = (n - 3) / 5 + .2), 1) && add(3, M, `¿Cuánto es 3 elevado a ${n}?`, 3 ** n, [3 ** (n - 1), 3 ** (n + 1), 2 ** n * 3].map(String), `3 elevado a ${n} es 3 multiplicado ${n} veces: ${3 ** n}.`);
 const isPrime = n => { if (n < 2) return false; for (let d = 2; d * d <= n; d++) if (n % d === 0) return false; return true; };
 const factorOf = n => { for (let d = 2; d * d <= n; d++) if (n % d === 0) return `${n} = ${d} × ${n / d}`; return ""; };
 const primes = [], comps = [];
 for (let n = 101; n <= 299; n += 2) { if (n % 5 === 0) continue; (isPrime(n) ? primes : comps).push(String(n)); }
-primes.forEach(p => { const w = others(comps.filter(c => Math.abs(c - p) < 40), 3, []); add(4, M, "¿Cuál de estos números es primo?", p, w, `${p} solo se divide entre 1 y sí mismo. Los otros no son primos: ${w.map(c => factorOf(+c)).join(", ")}.`, "primo-" + p); });
-let fact = 1; for (let n = 1; n <= 9; n++) { fact *= n; if (n >= 4) add(4, M, `¿Cuánto es ${n}! (factorial de ${n})?`, fact, [fact / n, fact * (n + 1), fact + n * 10].map(String), `${n}! = ${Array.from({ length: n }, (_, i) => i + 1).join(" × ")} = ${fact}.`); }
-for (let n = 4; n <= 15; n++) add(4, M, `¿Cuánto es ${n}³?`, n ** 3, near(n ** 3, sp(n ** 3), 1), `${n}³ = ${n} × ${n} × ${n} = ${n ** 3}.`);
-for (let n = 6; n <= 16; n++) add(4, M, `¿A qué número hay que elevar 2 para obtener ${2 ** n}?`, n, near(n, 3, 1), `2 elevado a ${n} es ${2 ** n}.`);
+primes.forEach(p => { D = .6; const w = others(comps.filter(c => Math.abs(c - p) < 40), 3, []); add(4, M, "¿Cuál de estos números es primo?", p, w, `${p} solo se divide entre 1 y sí mismo. Los otros no son primos: ${w.map(c => factorOf(+c)).join(", ")}.`, "primo-" + p); });
+let fact = 1; for (let n = 1; n <= 9; n++) { fact *= n; if (n >= 4) ((D = (n - 4) / 6 + .05), 1) && add(4, M, `¿Cuánto es ${n}! (factorial de ${n})?`, fact, [fact / n, fact * (n + 1), fact + n * 10].map(String), `${n}! = ${Array.from({ length: n }, (_, i) => i + 1).join(" × ")} = ${fact}.`); }
+for (let n = 4; n <= 15; n++) ((D = (n - 4) / 12 + .05), 1) && add(4, M, `¿Cuánto es ${n}³?`, n ** 3, near(n ** 3, sp(n ** 3), 1), `${n}³ = ${n} × ${n} × ${n} = ${n ** 3}.`);
+for (let n = 6; n <= 16; n++) ((D = (n - 6) / 11 + .05), 1) && add(4, M, `¿A qué número hay que elevar 2 para obtener ${2 ** n}?`, n, near(n, 3, 1), `2 elevado a ${n} es ${2 ** n}.`);
 const ROM = [[1000, "M"], [900, "CM"], [500, "D"], [400, "CD"], [100, "C"], [90, "XC"], [50, "L"], [40, "XL"], [10, "X"], [9, "IX"], [5, "V"], [4, "IV"], [1, "I"]];
 const romanParts = n => { const out = []; ROM.forEach(([v, r]) => { while (n >= v) { out.push([v, r]); n -= v; } }); return out; };
 const roman = n => romanParts(n).map(p => p[1]).join("");
 const romanWhy = n => { const ps = romanParts(n); return `${n} = ${ps.map(p => p[0]).join(" + ")} = ${ps.map(p => p[1]).join(" + ")} = ${roman(n)}.`; };
-for (let i = 0; i < 35; i++) { const n = ri(14, 99); add(3, M, `¿Cómo se escribe ${n} en números romanos?`, roman(n), near(n, 11, 1).map(v => roman(+v)), romanWhy(n)); }
-for (let i = 0; i < 35; i++) { const n = ri(400, 3999); add(4, M, `¿Cómo se escribe ${n} en números romanos?`, roman(n), [n + 100, n - 10, n + 40 > 3999 ? n - 40 : n + 40].map(roman), romanWhy(n)); }
-for (let i = 0; i < 25; i++) { const n = ri(14, 99); const r = roman(n); add(3, M, `¿Qué número es ${r} en números romanos?`, n, near(n, 9, 1), romanWhy(n)); }
+for (let i = 0; i < 35; i++) { const n = ri(14, 99); D = n / 110; add(3, M, `¿Cómo se escribe ${n} en números romanos?`, roman(n), near(n, 11, 1).map(v => roman(+v)), romanWhy(n)); }
+for (let i = 0; i < 35; i++) { const n = ri(400, 3999); D = .3 + n / 6000; add(4, M, `¿Cómo se escribe ${n} en números romanos?`, roman(n), [n + 100, n - 10, n + 40 > 3999 ? n - 40 : n + 40].map(roman), romanWhy(n)); }
+for (let i = 0; i < 25; i++) { const n = ri(14, 99); const r = roman(n); D = n / 110 + .1; add(3, M, `¿Qué número es ${r} en números romanos?`, n, near(n, 9, 1), romanWhy(n)); }
 
 const Q_TOTAL = BANK.reduce((a, z) => a + z.length, 0);
 const Q_BY_TEXT = new Map(); BANK.forEach(z => z.forEach(q => Q_BY_TEXT.set(q[0] + "|" + q[1], q)));
@@ -1144,7 +1193,7 @@ const isNewTheme = l => LEVEL_THEME.indexOf(LEVEL_THEME[l - 1]) === l - 1 && THE
 const $ = id => document.getElementById(id);
 const KEY = "cumbre-del-saber-v2";
 const BASE_LIVES = 3, MAX_LIVES = 6, REGEN_MS = 15 * 60 * 1000, STREAK_FOR_LIFE = 10;
-const freshSave = () => ({ stars: {}, best: {}, seen: {}, won: {}, reach: 1, lives: BASE_LIVES, regenAt: null, streak: 0, mistakes: [], practice: false, name: "", slow: false, sound: true, av: { fondo: 0, color: 0, ojos: 0, gorro: 0, extra: 0, amigo: 0 } });
+const freshSave = () => ({ stars: {}, best: {}, seen: {}, won: {}, reach: 1, lives: BASE_LIVES, regenAt: null, streak: 0, mistakes: [], practice: false, name: "", seenG: [], skipIntro: false, slow: false, sound: true, av: { fondo: 0, color: 0, ojos: 0, gorro: 0, extra: 0, amigo: 0 } });
 let save = freshSave();
 const QZ = new Map(); BANK.forEach((zq, z) => zq.forEach(q => QZ.set(q, z)));
 try {
@@ -1270,7 +1319,7 @@ function renderMap() {
   let html = "";
   ZONES.forEach((z, i) => {
     const top = pos[(i + 1) * PER_ZONE].y - 96, bottom = pos[i * PER_ZONE + 1].y + 64;
-    html += `<div class="zone" style="top:${top}px;height:${bottom - top}px;background:${z.color}"><span class="zone-label">${z.name}<small>${z.label} · ${z.time} s</small></span></div>`;
+    html += `<div class="zone" style="top:${top}px;height:${bottom - top}px;background:${z.color}"><span class="zone-label">${z.name}<small>${z.label} · ${levelTime(i * PER_ZONE + 1)}–${levelTime((i + 1) * PER_ZONE)} s</small></span></div>`;
   });
   const curve = upto => { let d = `M${pos[1].x} ${pos[1].y}`; for (let l = 2; l <= upto; l++) { const a = pos[l - 1], b = pos[l], my = (a.y + b.y) / 2; d += ` C${a.x} ${my} ${b.x} ${my} ${b.x} ${b.y}`; } return d; };
   html += `<svg class="path" viewBox="0 0 ${w} ${H}"><path d="${curve(TOTAL)}" fill="none" stroke="#a9b7d0" stroke-opacity=".35" stroke-width="6" stroke-dasharray="2 14" stroke-linecap="round"/><path d="${curve(open)}" fill="none" stroke="#f5b53c" stroke-width="6" stroke-dasharray="2 14" stroke-linecap="round"/></svg>`;
@@ -1319,29 +1368,35 @@ function scrollToCurrent(pos) {
 let game = null, timerId = null;
 const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
-// Prefer questions the player hasn't seen, and spread the five across different categories.
+// Every question has a difficulty (zone + 0..1). Each camp aims a little higher than the one before,
+// so the climb goes from very easy to very hard in small steps. Inside a camp the five go from easier to harder.
+const ALLQ = BANK.flat();
+const levelTime = lvl => Math.round(22 - (lvl - 1) * 12 / (TOTAL - 1));
+const targetD = lvl => (lvl - 1) / (TOTAL - 1) * 4.85;
 function pickQuestions(lvl) {
-  const z = zoneOf(lvl), pool = BANK[z];
-  let seen = new Set(save.seen[z] || []);
-  let fresh = pool.map((_, i) => i).filter(i => !seen.has(i));
-  if (fresh.length < PER_LEVEL) { seen = new Set(); fresh = pool.map((_, i) => i); }
+  const t = targetD(lvl) + .1;
+  let win = .45, cand;
+  do { cand = ALLQ.map((_, i) => i).filter(i => Math.abs(ALLQ[i][7] - t) <= win); win += .15; } while (cand.length < 60);
+  const seen = new Set(save.seenG || []);
+  let fresh = cand.filter(i => !seen.has(i));
+  if (fresh.length < PER_LEVEL * 3) { cand.forEach(i => seen.delete(i)); fresh = cand.slice(); }
   const theme = themeOf(lvl).cats, pick = [];
   if (theme) {
     // 4 questions from the camp's theme (unseen first), the last one from anything.
-    const inTheme = i => theme.includes(pool[i][5]);
-    const want = shuffle(fresh.filter(inTheme)).concat(shuffle(pool.map((_, i) => i).filter(i => inTheme(i) && !fresh.includes(i))));
+    const inTheme = i => theme.includes(ALLQ[i][5]);
+    const want = shuffle(fresh.filter(inTheme)).concat(shuffle(cand.filter(i => inTheme(i) && !fresh.includes(i))));
     while (pick.length < PER_LEVEL - 1 && want.length) pick.push(want.shift());
   }
   const byCat = {};
-  shuffle(fresh.filter(i => !pick.includes(i))).forEach(i => (byCat[pool[i][5]] = byCat[pool[i][5]] || []).push(i));
+  shuffle(fresh.filter(i => !pick.includes(i))).forEach(i => (byCat[ALLQ[i][5]] = byCat[ALLQ[i][5]] || []).push(i));
   const cats = shuffle(Object.keys(byCat));
   for (let r = 0; pick.length < PER_LEVEL; r = (r + 1) % cats.length) { const c = byCat[cats[r]]; if (c.length) pick.push(c.pop()); }
   pick.forEach(i => seen.add(i));
-  save.seen[z] = [...seen]; persist();
-  return pick.map(i => pool[i]);
+  save.seenG = [...seen]; persist();
+  return pick.sort((a, b) => ALLQ[a][7] - ALLQ[b][7]).map(i => ALLQ[i]);
 }
 
-function show(id) { ["map", "quiz", "result", "avatar", "backup"].forEach(s => $(s).hidden = s !== id); }
+function show(id) { ["map", "quiz", "result", "avatar", "backup", "introScreen"].forEach(s => $(s).hidden = s !== id); }
 
 function startLevel(lvl) {
   paintLives();
@@ -1380,7 +1435,7 @@ function showQuestion() {
 // Base time by zone, plus extra for long questions and harder math; "tiempo ampliado" gives 50 % more.
 function timeFor(q) {
   const z = QZ.get(q) ?? game.z, len = q[0].length;
-  let t = ZONES[z].time + (len > 70 ? 4 : len > 45 ? 2 : 0) + (q[5] === "Matemáticas" && z >= 2 ? 5 : 0);
+  let t = (game.lvl ? levelTime(game.lvl) : ZONES[z].time) + (len > 70 ? 4 : len > 45 ? 2 : 0) + (q[5] === "Matemáticas" && z >= 2 ? 5 : 0);
   return Math.round(t * (save.slow ? 1.5 : 1));
 }
 function runTimer() {
@@ -1592,8 +1647,43 @@ document.addEventListener("keydown", e => {
 });
 let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => { if (!$("map").hidden) renderMap(); }, 150); });
 
+
+/* ---------- Intro ---------- */
+const SLIDES = [
+  { title: "Bienvenido a Cumbre del Saber", art: () => `<div class="big">${avatarSVG(save.av)}</div>`,
+    body: () => `<p>Eres un explorador que quiere llegar a la cima de una montaña. Para subir, tienes que responder preguntas de cultura general, ciencia, historia, geografía, matemáticas y más.</p>` },
+  { title: "Empieza fácil y sube poco a poco", art: () => `<div class="climb">${ZONES.slice().reverse().map(z => `<div style="background:${z.color}">${z.name}<small>${z.label}</small></div>`).join("")}</div>`,
+    body: () => `<p>Hay <b>30 campamentos</b>. Los primeros son muy fáciles y cada uno es un poco más difícil que el anterior, con un poco menos de tiempo.</p>` },
+  { title: "Cómo se juega", art: () => `<div class="icons"><span>${ICON.star(true)}3 aciertos</span><span><svg viewBox="0 0 24 24" fill="none" stroke="#a9b7d0" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/></svg>Con tiempo</span><span><svg viewBox="0 0 24 24" fill="none" stroke="#4cc38a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg>Explicación</span></div>`,
+    body: () => `<ul><li>Cada campamento tiene <b>5 preguntas</b> con tiempo.</li><li>Acierta <b>3 o más</b> para pasar. Con 4 o 5 ganas más estrellas.</li><li>Una vez por campamento puedes usar <b>50:50</b> o <b>+10 segundos</b>.</li><li>Después de cada respuesta ves una explicación corta.</li></ul>` },
+  { title: "Vidas y premios", art: () => `<div class="icons"><span>${ICON.heart(true)}3 vidas</span><span>${ICON.gift.replace('viewBox', 'width="30" height="30" viewBox')}30 premios</span></div>`,
+    body: () => `<ul><li>Cada error cuesta <b>una vida</b>. Se recupera una cada 15 minutos.</li><li>Si te quedas sin vidas, sigue en <b>modo práctica</b>. Nunca pierdes campamentos ganados.</li><li>Cada campamento nuevo te da un <b>premio</b> para vestir a tu explorador.</li></ul>` },
+  { title: "¿Cómo se llama tu explorador?", art: () => `<div class="big">${avatarSVG(save.av)}</div>`,
+    body: () => `<div class="name-row"><label for="introName">Puedes cambiarlo después</label><input id="introName" maxlength="16" autocomplete="off" placeholder="Escribe un nombre" value="${esc(save.name)}"></div><label class="check"><input type="checkbox" id="skipBox" ${save.skipIntro ? "checked" : ""}> No mostrar esta intro al abrir</label>` }
+];
+let slide = 0;
+function paintSlide() {
+  const s = SLIDES[slide], last = slide === SLIDES.length - 1;
+  $("dots").innerHTML = SLIDES.map((_, i) => `<i class="${i === slide ? "on" : ""}"></i>`).join("");
+  $("slideArt").innerHTML = s.art(); $("slideTitle").textContent = s.title; $("slideBody").innerHTML = s.body();
+  $("prevSlide").style.visibility = slide ? "visible" : "hidden";
+  $("nextSlide").textContent = last ? "¡A jugar!" : "Siguiente";
+  $("skipIntro").style.visibility = last ? "hidden" : "visible";
+  if (last) {
+    $("introName").oninput = e => { save.name = e.target.value.replace(/\s+/g, " ").trimStart().slice(0, 16); persist(); };
+    $("skipBox").onchange = e => { save.skipIntro = e.target.checked; persist(); };
+  }
+}
+function openIntro() { slide = 0; show("introScreen"); $("introScreen").scrollTop = 0; paintSlide(); }
+function closeIntro() { save.name = (save.name || "").trim(); persist(); showMap(); }
+$("nextSlide").onclick = () => { if (slide < SLIDES.length - 1) { slide++; paintSlide(); $("introScreen").scrollTop = 0; } else closeIntro(); };
+$("prevSlide").onclick = () => { if (slide) { slide--; paintSlide(); } };
+$("skipIntro").onclick = () => { slide = SLIDES.length - 1; paintSlide(); };
+$("helpBtn").onclick = openIntro;
+
 $("qTotal").textContent = fmt(Q_TOTAL);
 paintSound(); showMap();
+if (!save.skipIntro) openIntro();
 </script>
 
 </body>
